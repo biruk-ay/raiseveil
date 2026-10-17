@@ -195,6 +195,16 @@ textarea {
   line-height: 1.55;
 }
 
+.demo-banner {
+  margin: 20px 0 0;
+  border-left: 3px solid #789ea4;
+  padding: 12px 15px;
+  background: #edf5f6;
+  color: #355e66;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .workspace-loading {
   margin: 30px 0;
   color: #65767a;

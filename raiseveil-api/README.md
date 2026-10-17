@@ -19,6 +19,10 @@ the Midnight indexer. It does not publish off-chain broker metrics as verified.
    npm run db:migrate --workspace raiseveil-api
    ```
 
+   On Neon, the API uses the pooled `DATABASE_URL` for application traffic,
+   while Drizzle migrations use `DATABASE_URL_UNPOOLED`. For local PostgreSQL,
+   `DATABASE_URL` can be used for both.
+
 4. Start the service with `npm run dev --workspace raiseveil-api`. The API and
    Drizzle configuration load the repository-root `.env` automatically.
 5. Start the UI with `npm run dev --workspace raiseveil-ui`; Vite proxies `/api`

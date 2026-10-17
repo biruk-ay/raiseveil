@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { authClient } from "../lib/auth-client";
 import { apiRequest, type DashboardResponse } from "../lib/api";
+import { demoDashboard, demoModeEnabled, endDemoSession, hasDemoSession } from "../lib/demo";
 import { StatsGrid } from "./stats";
 import "./workspace.css";
 
@@ -9,16 +10,17 @@ interface AttestationEnvelope {
 }
 
 export function Dashboard() {
-  const [data, setData] = useState<DashboardResponse | null>(null);
+  const isDemo = demoModeEnabled && hasDemoSession();
+  const [data, setData] = useState<DashboardResponse | null>(() => isDemo ? demoDashboard : null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [token, setToken] = useState("");
   const [contractAddress, setContractAddress] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [bio, setBio] = useState("");
+  const [displayName, setDisplayName] = useState(() => isDemo ? demoDashboard.profile.displayName : "");
+  const [bio, setBio] = useState(() => isDemo ? demoDashboard.profile.bio : "");
   const [isPublic, setIsPublic] = useState(true);
 
-  async function loadDashboard() {
+  const loadDashboard = useCallback(async () => {
     try {
       const result = await apiRequest<DashboardResponse>("/api/me");
       setData(result);
@@ -33,11 +35,36 @@ export function Dashboard() {
       }
       setNotice(error instanceof Error ? error.message : "Unable to load your workspace");
     }
-  }
+  }, []);
 
   useEffect(() => {
-    void loadDashboard();
-  }, []);
+    if (isDemo) {
+      return;
+    }
+
+    let cancelled = false;
+    apiRequest<DashboardResponse>("/api/me")
+      .then((result) => {
+        if (cancelled) return;
+        setData(result);
+        setDisplayName(result.profile.displayName);
+        setBio(result.profile.bio);
+        setIsPublic(result.profile.isPublic ?? true);
+        setContractAddress(result.profile.contractAddress ?? "");
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        if (error instanceof Error && error.message === "Sign in to continue") {
+          window.location.assign("/login");
+          return;
+        }
+        setNotice(error instanceof Error ? error.message : "Unable to load your workspace");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isDemo]);
 
   async function connectOanda(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -120,6 +147,11 @@ export function Dashboard() {
   }
 
   async function signOut() {
+    if (isDemo) {
+      endDemoSession();
+      window.location.assign("/");
+      return;
+    }
     await authClient.signOut();
     window.location.assign("/");
   }
@@ -131,7 +163,7 @@ export function Dashboard() {
         <div className="workspace-nav">
           <a className="workspace-nav__item is-current" href="/dashboard">Your workspace</a>
           <a className="workspace-nav__item" href="/market">Trader marketplace</a>
-          {data?.profile && (
+          {data?.profile.contractAddress && (
             <a className="workspace-nav__item" href={`/trader/${data.profile.slug}`}>
               Public profile
             </a>
@@ -153,6 +185,12 @@ export function Dashboard() {
         </header>
 
         {notice && <p className="workspace-notice" role="status">{notice}</p>}
+        {isDemo && (
+          <p className="demo-banner" role="status">
+            Demo workspace. The figures below are sample data, not verified
+            trading results. Changes and broker actions are disabled.
+          </p>
+        )}
         {!data ? (
           <p className="workspace-loading">Loading your workspace…</p>
         ) : (
@@ -160,8 +198,12 @@ export function Dashboard() {
             <section className="workspace-section">
               <div className="section-heading">
                 <div>
-                  <h2>Your verified record</h2>
-                  <p>Metrics are read from your linked RaiseVeil contract.</p>
+                  <h2>{isDemo ? "Sample trader record" : "Your verified record"}</h2>
+                  <p>
+                    {isDemo
+                      ? "Illustrative values only; no contract has been checked."
+                      : "Metrics are read from your linked RaiseVeil contract."}
+                  </p>
                 </div>
                 {data.profile.observedAt && (
                   <span className="data-timestamp">
@@ -192,20 +234,34 @@ export function Dashboard() {
                 </div>
                 {data.broker ? (
                   <div className="connection-details">
-                    <strong>OANDA</strong>
-                    <span>Credential stored encrypted</span>
-                    <button
-                      className="quiet-button"
-                      disabled={busy}
-                      onClick={async () => {
-                        await apiRequest("/api/me/broker/oanda", { method: "DELETE" });
-                        setNotice("OANDA disconnected.");
-                        await loadDashboard();
-                      }}
-                      type="button"
-                    >
-                      Disconnect
-                    </button>
+                    {isDemo ? (
+                      <>
+                        <strong>Sample broker account</strong>
+                        <span>No real broker is connected in demo mode.</span>
+                      </>
+                    ) : (
+                      <>
+                        <strong>OANDA</strong>
+                        <span>Credential stored encrypted</span>
+                        <button
+                          className="quiet-button"
+                          disabled={busy}
+                          onClick={async () => {
+                            await apiRequest("/api/me/broker/oanda", { method: "DELETE" });
+                            setNotice("OANDA disconnected.");
+                            await loadDashboard();
+                          }}
+                          type="button"
+                        >
+                          Disconnect
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ) : isDemo ? (
+                  <div className="empty-state">
+                    <h3>Broker actions are disabled</h3>
+                    <p>This preview does not connect to a brokerage account.</p>
                   </div>
                 ) : (
                   <form className="workspace-form" onSubmit={(event) => void connectOanda(event)}>
@@ -227,7 +283,7 @@ export function Dashboard() {
                     </button>
                   </form>
                 )}
-                {data.broker && (
+                {data.broker && !isDemo && (
                   <div className="attestation-action">
                     <button className="button button--soft" disabled={busy} onClick={() => void generateAttestation()} type="button">
                       Create signed attestation
@@ -244,22 +300,29 @@ export function Dashboard() {
                     <p>Link the deployed RaiseVeil contract you verified.</p>
                   </div>
                 </div>
-                <form className="workspace-form" onSubmit={(event) => void linkContract(event)}>
-                  <label className="workspace-label" htmlFor="contract-address">Contract address</label>
-                  <input
-                    id="contract-address"
-                    onChange={(event) => setContractAddress(event.currentTarget.value)}
-                    placeholder="Midnight contract address"
-                    required
-                    value={contractAddress}
-                  />
-                  <p className="field-help">
-                    The API checks the configured signer and reads only the public ledger fields.
-                  </p>
-                  <button className="button button--dark" disabled={busy} type="submit">
-                    Read verified contract
-                  </button>
-                </form>
+                {isDemo ? (
+                  <div className="empty-state">
+                    <h3>No live contract is linked</h3>
+                    <p>Sample figures above are for preview only and are not read from Midnight.</p>
+                  </div>
+                ) : (
+                  <form className="workspace-form" onSubmit={(event) => void linkContract(event)}>
+                    <label className="workspace-label" htmlFor="contract-address">Contract address</label>
+                    <input
+                      id="contract-address"
+                      onChange={(event) => setContractAddress(event.currentTarget.value)}
+                      placeholder="Midnight contract address"
+                      required
+                      value={contractAddress}
+                    />
+                    <p className="field-help">
+                      The API checks the configured signer and reads only the public ledger fields.
+                    </p>
+                    <button className="button button--dark" disabled={busy} type="submit">
+                      Read verified contract
+                    </button>
+                  </form>
+                )}
               </section>
             </div>
 
@@ -274,6 +337,7 @@ export function Dashboard() {
                 <label className="workspace-label" htmlFor="display-name">Display name</label>
                 <input
                   id="display-name"
+                  disabled={isDemo}
                   maxLength={80}
                   minLength={2}
                   onChange={(event) => setDisplayName(event.currentTarget.value)}
@@ -283,6 +347,7 @@ export function Dashboard() {
                 <label className="workspace-label" htmlFor="profile-bio">About you</label>
                 <textarea
                   id="profile-bio"
+                  disabled={isDemo}
                   maxLength={280}
                   onChange={(event) => setBio(event.currentTarget.value)}
                   rows={3}
@@ -291,12 +356,14 @@ export function Dashboard() {
                 <label className="visibility-toggle">
                   <input
                     checked={isPublic}
+                    disabled={isDemo}
                     onChange={(event) => setIsPublic(event.currentTarget.checked)}
                     type="checkbox"
                   />
                   <span>Show my profile in the public trader marketplace</span>
                 </label>
-                <button className="button button--dark" disabled={busy} type="submit">Save profile</button>
+                <button className="button button--dark" disabled={busy || isDemo} type="submit">Save profile</button>
+                {isDemo && <p className="field-help">Profile edits are disabled in the sample workspace.</p>}
                 {data.profile.contractAddress && (
                   <a className="text-link" href={`/trader/${data.profile.slug}`}>
                     View your public profile

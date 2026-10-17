@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import "./auth-page.css";
 import { authClient } from "../lib/auth-client";
+import { demoModeEnabled, endDemoSession, startDemoSession } from "../lib/demo";
 
 type AuthMode = "login" | "signup";
 
@@ -59,6 +60,9 @@ export function AuthPage({ mode }: AuthPageProps) {
     const password = String(formData.get("password") ?? "");
 
     try {
+      if (demoModeEnabled) {
+        endDemoSession();
+      }
       if (isSignup) {
         const name = String(formData.get("name") ?? "");
         const result = await authClient.signUp.email({
@@ -196,6 +200,29 @@ export function AuthPage({ mode }: AuthPageProps) {
               </p>
             )}
           </form>
+
+          {demoModeEnabled && (
+            <div className="auth-demo">
+              <p>
+                Need to preview the app? Explore with sample data. No account
+                or email is required.
+              </p>
+              <button
+                className="auth-demo__button"
+                onClick={() => {
+                  try {
+                    startDemoSession();
+                    window.location.assign("/dashboard");
+                  } catch {
+                    setNotice("Demo access is unavailable because browser storage is disabled.");
+                  }
+                }}
+                type="button"
+              >
+                Explore demo workspace
+              </button>
+            </div>
+          )}
 
           <p className="auth-switch">
             {isSignup ? "Already have an account?" : "New to RaiseVeil?"}{" "}

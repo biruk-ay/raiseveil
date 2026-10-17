@@ -13,6 +13,9 @@
     "raiseveil-api",
     "raiseveil-ui"
   ],
+  "scripts": {
+    "build": "npm run build --workspace raiseveil-cli && npm run build --workspace raiseveil-api && npm run build --workspace raiseveil-attestation-api && npm run build --workspace raiseveil-ui"
+  },
   "devDependencies": {
     "@types/node": "^25.0.1",
     "@types/ws": "^8.18.1",
@@ -33,6 +36,8 @@
     "@midnight-ntwrk/midnight-js-utils": "4.1.1",
     "@midnight-ntwrk/wallet-sdk": "1.2.0",
     "@midnight-ntwrk/wallet-sdk-address-format": "3.1.2",
+    "@neon/config": "^1.9.2",
+    "@neon/env": "^1.6.3",
     "@scure/bip39": "^2.0.1",
     "dotenv": "^17.2.3",
     "pino": "^10.1.0",

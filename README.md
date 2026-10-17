@@ -81,6 +81,8 @@ appropriate network controls and keep secrets in a secret manager.
 
 - Node.js 22 or later and npm.
 - PostgreSQL.
+- A Neon account with access to the configured organization, project, and
+  `production` branch when using the hosted database.
 - Compact compiler 0.35.0 for compiling the current contract.
 - A configured OANDA API token for the account whose history will be attested.
 - A running Midnight network and indexer. The CLI also needs the network node,
@@ -109,6 +111,21 @@ random values for `BETTER_AUTH_SECRET`, `BROKER_ENCRYPTION_KEY`, and
 `RAISEVEIL_ATTESTATION_SHARED_SECRET`; use `openssl rand -base64 32` for each
 secret. The encryption key must decode from Base64 to exactly 32 bytes.
 
+#### Connect the API to Neon
+
+Neon is linked to the `production` branch in `.neon`, with its policy in
+`neon.ts`. With the Neon CLI installed and authenticated, run:
+
+```sh
+neon deploy
+```
+
+This pulls `DATABASE_URL` (pooled), `DATABASE_URL_UNPOOLED` (direct), and
+`NEON_BRANCH` into the existing root `.env` while preserving other settings.
+The API uses the pooled URL through its existing `pg`/Drizzle stack. Drizzle
+migrations use the direct URL, and the API enables TLS automatically for Neon
+database hosts.
+
 Set the provider public-key coordinates in
 `RAISEVEIL_PROVIDER_PUBLIC_KEY_X` and
 `RAISEVEIL_PROVIDER_PUBLIC_KEY_Y`. They must match the public key derived from
@@ -122,7 +139,8 @@ provider signing keys.
 ### 2. Start PostgreSQL and migrate the database
 
 Create a PostgreSQL database and set its connection string in `DATABASE_URL`.
-Then apply the Drizzle migrations:
+For Neon, `neon deploy` supplies both the pooled application URL and direct
+migration URL. Then apply the Drizzle migrations:
 
 ```sh
 npm run db:migrate --workspace raiseveil-api
@@ -154,9 +172,54 @@ The UI is served at `http://localhost:5173`. In development, Vite forwards
 `/api` requests to the API at `http://localhost:3000`. The API and the
 attestation service load the repository-root `.env`.
 
+For a frontend-only product walkthrough, set `VITE_DEMO_MODE=true` in the
+repository-root `.env` and restart Vite. The login and signup pages then show
+an “Explore demo workspace” option with clearly marked, read-only sample data.
+This does not create an account or bypass API authentication; leave it disabled
+for normal use and production builds.
+
 For email verification and password-reset delivery, configure `SMTP_URL` and
 `AUTH_EMAIL_FROM`. Verification is required in production; it can be enabled
 locally with `REQUIRE_EMAIL_VERIFICATION=true`.
+
+## Deploying the web app to Vercel
+
+The root [vercel.json](./vercel.json) configures a three-service Vercel
+deployment. `raiseveil-ui` receives all non-API paths, `raiseveil-api` receives
+`/api/*`, and `raiseveil-attestation-api` remains private. The API declares a
+service binding to the attestation service; Vercel injects
+`RAISEVEIL_ATTESTATION_API_URL` at runtime. Do not set that variable manually
+in Vercel. Locally, `.env` can continue to point it at
+`http://127.0.0.1:3100`.
+
+The API exports its Hono app for Vercel while retaining the Node server for
+local development. The attestation service has a Node function entrypoint for
+Vercel and keeps its existing standalone server for local development.
+
+Connect the repository to Vercel with the repository root as the project root,
+then configure these environment variables in the Vercel project:
+
+- API: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`,
+  `BETTER_AUTH_TRUSTED_ORIGINS`, `WEB_ORIGIN`, `BROKER_ENCRYPTION_KEY`,
+  `RAISEVEIL_ATTESTATION_SHARED_SECRET`,
+  `RAISEVEIL_PROVIDER_PUBLIC_KEY_X`, `RAISEVEIL_PROVIDER_PUBLIC_KEY_Y`,
+  `MIDNIGHT_NETWORK_ID`, `MIDNIGHT_INDEXER_URL`,
+  `MIDNIGHT_INDEXER_WS_URL`, `OANDA_API_URL`, `SMTP_URL`, and
+  `AUTH_EMAIL_FROM` as applicable.
+- Attestation service: `RAISEVEIL_PROVIDER_SECRET_KEY`,
+  `RAISEVEIL_ATTESTATION_SHARED_SECRET`, `RAISEVEIL_PROVIDER_ID`, and
+  `OANDA_API_URL`.
+- UI build: `VITE_DEMO_MODE=false`.
+
+Set `BETTER_AUTH_URL`, `WEB_ORIGIN`, and
+`BETTER_AUTH_TRUSTED_ORIGINS` to the deployed site origin (for example,
+`https://raiseveil.example.com`). The attestation service's provider secret
+key and the shared secret must only be available server-side. Apply the
+database migrations to the configured database before using the deployed app.
+
+For local multi-service routing and binding behavior, use `vercel dev` from
+the repository root. The ordinary `npm run dev --workspace ...` commands
+remain available for running each service independently.
 
 ### 4. Build and configure the contract
 
@@ -213,6 +276,9 @@ npm run build --workspace raiseveil-attestation-api
 # Build and lint the UI
 npm run build --workspace raiseveil-ui
 npm run lint --workspace raiseveil-ui
+
+# Build the CLI, APIs, and UI
+npm run build
 ```
 
 ## API overview

@@ -34,26 +34,30 @@ app.onError((error, c) => {
 });
 app.notFound((c) => c.json({ error: "Route not found" }, 404));
 
-const port = Number(process.env.PORT ?? 3000);
-if (!Number.isInteger(port) || port < 1 || port > 65535) {
-  throw new Error("PORT must be an integer between 1 and 65535");
+export default app;
+
+if (process.env.VERCEL !== "1") {
+  const port = Number(process.env.PORT ?? 3000);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error("PORT must be an integer between 1 and 65535");
+  }
+
+  const server = serve(
+    {
+      fetch: app.fetch,
+      hostname: process.env.HOST ?? "127.0.0.1",
+      port,
+    },
+    (info) => {
+      console.info(`RaiseVeil API listening on http://${info.address}:${info.port}`);
+    },
+  );
+
+  async function shutdown(): Promise<void> {
+    server.close();
+    await pool.end();
+  }
+
+  process.once("SIGINT", () => void shutdown());
+  process.once("SIGTERM", () => void shutdown());
 }
-
-const server = serve(
-  {
-    fetch: app.fetch,
-    hostname: process.env.HOST ?? "127.0.0.1",
-    port,
-  },
-  (info) => {
-    console.info(`RaiseVeil API listening on http://${info.address}:${info.port}`);
-  },
-);
-
-async function shutdown(): Promise<void> {
-  server.close();
-  await pool.end();
-}
-
-process.once("SIGINT", () => void shutdown());
-process.once("SIGTERM", () => void shutdown());
