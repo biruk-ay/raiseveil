@@ -1,0 +1,44 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "raiseveil-api": {
+      "root": "raiseveil-api",
+      "framework": "hono",
+      "buildCommand": "npm run build",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "raiseveil-attestation-api",
+          "format": "url",
+          "env": "RAISEVEIL_ATTESTATION_API_URL"
+        }
+      ]
+    },
+    "raiseveil-attestation-api": {
+      "root": "raiseveil-attestation-api",
+      "runtime": "node",
+      "entrypoint": "dist/handler.js",
+      "buildCommand": "npm run build"
+    },
+    "raiseveil-ui": {
+      "root": "raiseveil-ui",
+      "framework": "vite",
+      "buildCommand": "npm run build",
+      "outputDirectory": "dist"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": {
+        "service": "raiseveil-api"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "raiseveil-ui"
+      }
+    }
+  ]
+}
