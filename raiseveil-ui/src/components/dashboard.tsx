@@ -212,7 +212,7 @@ export function Dashboard() {
                 )}
               </div>
               {data.profile.stats ? (
-                <StatsGrid stats={data.profile.stats} />
+                <StatsGrid stats={data.profile.stats} isSample={isDemo} />
               ) : (
                 <div className="empty-state">
                   <h3>No on-chain record linked yet</h3>

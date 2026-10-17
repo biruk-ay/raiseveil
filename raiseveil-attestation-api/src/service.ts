@@ -1,4 +1,3 @@
-import "../config/env.js";
 import { createServer } from "./server.js";
 
 function requiredEnv(name: string): string {

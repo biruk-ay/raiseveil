@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiRequest, type TraderProfile } from "../lib/api";
+import { demoModeEnabled, demoTraders } from "../lib/demo";
 import { StatsGrid } from "./stats";
 import "./workspace.css";
 
@@ -7,19 +8,48 @@ interface ProfileResponse {
   profile: TraderProfile;
 }
 
+interface ProfileLoad {
+  slug: string;
+  profile: TraderProfile | null;
+  error: string;
+}
+
 export function PublicProfile({ slug }: { slug: string }) {
-  const [profile, setProfile] = useState<TraderProfile | null>(null);
-  const [error, setError] = useState("");
+  const [load, setLoad] = useState<ProfileLoad | null>(null);
+  const sampleProfile = demoModeEnabled
+    ? demoTraders.find((trader) => trader.slug === slug) ?? null
+    : null;
+  const profile = demoModeEnabled
+    ? sampleProfile
+    : load?.slug === slug
+      ? load.profile
+      : null;
+  const visibleError = demoModeEnabled
+    ? sampleProfile
+      ? ""
+      : "This sample profile is not available."
+    : load?.slug === slug
+      ? load.error
+      : "";
 
   useEffect(() => {
+    if (demoModeEnabled) {
+      return;
+    }
     let cancelled = false;
     apiRequest<ProfileResponse>(`/api/profiles/${encodeURIComponent(slug)}`)
       .then(({ profile: result }) => {
-        if (!cancelled) setProfile(result);
+        if (!cancelled) {
+          setLoad({ slug, profile: result, error: "" });
+        }
       })
       .catch((requestError: unknown) => {
         if (!cancelled) {
-          setError(requestError instanceof Error ? requestError.message : "Unable to load profile");
+          setLoad({
+            slug,
+            profile: null,
+            error: requestError instanceof Error ? requestError.message : "Unable to load profile",
+          });
         }
       });
     return () => {
@@ -37,10 +67,10 @@ export function PublicProfile({ slug }: { slug: string }) {
           <a className="public-header__signin" href="/login">Sign in</a>
         </nav>
       </header>
-      {error ? (
+      {visibleError ? (
         <section className="profile-empty">
           <h1>Profile not available</h1>
-          <p>{error}</p>
+          <p>{visibleError}</p>
           <a className="button button--dark" href="/market">Return to marketplace</a>
         </section>
       ) : !profile ? (
@@ -49,24 +79,36 @@ export function PublicProfile({ slug }: { slug: string }) {
         <>
           <section className="profile-heading">
             <div>
-              <p className="marketplace-kicker">Public trader profile</p>
+              <p className="marketplace-kicker">
+                {demoModeEnabled ? "Sample trader profile" : "Public trader profile"}
+              </p>
               <h1>{profile.displayName}</h1>
               {profile.bio && <p className="profile-bio">{profile.bio}</p>}
             </div>
-            <span className="verified-badge">
-              <span aria-hidden="true">✓</span>
-              Read from Midnight
-            </span>
+            {demoModeEnabled ? (
+              <span className="sample-badge">Sample only · not verified</span>
+            ) : (
+              <span className="verified-badge">
+                <span aria-hidden="true">✓</span>
+                Read from Midnight
+              </span>
+            )}
           </section>
           <section className="profile-stats">
             <div className="market-results__heading">
-              <h2>Contract-published stats</h2>
+              <h2>{demoModeEnabled ? "Sample stats (not on-chain)" : "Contract-published stats"}</h2>
               {profile.observedAt && (
                 <span>Read {new Date(profile.observedAt).toLocaleString()}</span>
               )}
             </div>
+            {demoModeEnabled && (
+              <p className="demo-banner" role="note">
+                Illustrative figures only. They are fictional, have not been
+                verified, and are not investment advice.
+              </p>
+            )}
             {profile.stats ? (
-              <StatsGrid stats={profile.stats} />
+              <StatsGrid stats={profile.stats} isSample={demoModeEnabled} />
             ) : (
               <div className="empty-state">
                 <h3>No verified record is linked yet</h3>
@@ -92,7 +134,11 @@ export function PublicProfile({ slug }: { slug: string }) {
       )}
       <footer className="public-footer">
         <a href="/market">Back to marketplace</a>
-        <p>Public records are not investment advice.</p>
+        <p>
+          {demoModeEnabled
+            ? "Sample figures are fictional and are not investment advice."
+            : "Public records are not investment advice."}
+        </p>
       </footer>
     </main>
   );

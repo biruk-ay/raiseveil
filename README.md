@@ -174,9 +174,11 @@ attestation service load the repository-root `.env`.
 
 For a frontend-only product walkthrough, set `VITE_DEMO_MODE=true` in the
 repository-root `.env` and restart Vite. The login and signup pages then show
-an “Explore demo workspace” option with clearly marked, read-only sample data.
-This does not create an account or bypass API authentication; leave it disabled
-for normal use and production builds.
+an “Explore demo workspace” option, and the marketplace and sample profile
+pages use clearly marked, read-only fictional data instead of API requests.
+This does not create an account or bypass API authentication. Leave it disabled
+for normal use; for a Vercel demo deployment, enable it on the UI service until
+public ledger-v9 support is available.
 
 For email verification and password-reset delivery, configure `SMTP_URL` and
 `AUTH_EMAIL_FROM`. Verification is required in production; it can be enabled
@@ -203,19 +205,31 @@ then configure these environment variables in the Vercel project:
   `BETTER_AUTH_TRUSTED_ORIGINS`, `WEB_ORIGIN`, `BROKER_ENCRYPTION_KEY`,
   `RAISEVEIL_ATTESTATION_SHARED_SECRET`,
   `RAISEVEIL_PROVIDER_PUBLIC_KEY_X`, `RAISEVEIL_PROVIDER_PUBLIC_KEY_Y`,
-  `MIDNIGHT_NETWORK_ID`, `MIDNIGHT_INDEXER_URL`,
-  `MIDNIGHT_INDEXER_WS_URL`, `OANDA_API_URL`, `SMTP_URL`, and
+  `MIDNIGHT_NETWORK_ID`, `BLOCKFROST_PROJECT_ID` (for Preprod),
+  `MIDNIGHT_INDEXER_URL`, `MIDNIGHT_INDEXER_WS_URL`, `OANDA_API_URL`, `SMTP_URL`, and
   `AUTH_EMAIL_FROM` as applicable.
 - Attestation service: `RAISEVEIL_PROVIDER_SECRET_KEY`,
   `RAISEVEIL_ATTESTATION_SHARED_SECRET`, `RAISEVEIL_PROVIDER_ID`, and
   `OANDA_API_URL`.
-- UI build: `VITE_DEMO_MODE=false`.
+- UI build: `VITE_DEMO_MODE=true` for a read-only demo (set to `false` for
+  live marketplace data).
 
 Set `BETTER_AUTH_URL`, `WEB_ORIGIN`, and
 `BETTER_AUTH_TRUSTED_ORIGINS` to the deployed site origin (for example,
 `https://raiseveil.example.com`). The attestation service's provider secret
 key and the shared secret must only be available server-side. Apply the
 database migrations to the configured database before using the deployed app.
+The API defaults to Midnight Preprod on Vercel and builds its HTTP and
+WebSocket indexer URLs from `BLOCKFROST_PROJECT_ID`. You can instead provide
+both indexer URLs explicitly. Never use the local `127.0.0.1` indexer URLs in
+Vercel environment variables.
+The CLI checks the selected network's protocol version before starting its
+wallet; deployment and verification require ledger v9.
+The current Midnight compatibility matrix lists Preview, Preprod, and Mainnet
+as ledger v8, so none of those public networks can accept this v9 contract yet.
+The CLI will stop before wallet startup or transaction submission until a
+selected network supports v9. An immediate Preprod deployment would require
+deliberately porting the contract and its SDK/toolchain to ledger v8 first.
 
 For local multi-service routing and binding behavior, use `vercel dev` from
 the repository root. The ordinary `npm run dev --workspace ...` commands
@@ -230,10 +244,10 @@ compact update 0.35.0
 npm run build --workspace raiseveil-cli
 ```
 
-Before submitting trader data, deploy the contract and configure its trusted
-provider key through the contract's `setSignerPk` circuit. This initialization
-is an operator/deployment step, not something the verification CLI performs.
-The CLI intentionally refuses to initialize or replace a mismatched key.
+Deploy the contract with the provider's public key using the CLI's `deploy`
+command. The key is stored in a sealed ledger field during construction and
+cannot be replaced later. The CLI's `verify` command checks that it matches the
+locally pinned provider key before submitting trader data.
 
 ### 5. Verify and publish a trader record
 
@@ -241,7 +255,14 @@ Create an account at `/signup`, sign in, and connect the OANDA token from the
 dashboard. Request and download the attestation JSON. Set the local CLI
 environment values `MIDNIGHT_WALLET_SEED`,
 `RAISEVEIL_PROVIDER_PUBLIC_KEY_X`, `RAISEVEIL_PROVIDER_PUBLIC_KEY_Y`, and
-`RAISEVEIL_PRIVATE_STATE_PASSWORD`, then run:
+`RAISEVEIL_PRIVATE_STATE_PASSWORD`, then deploy the contract:
+
+```sh
+npm run start --workspace raiseveil-cli -- deploy
+```
+
+Use the printed address to link the deployed contract from the dashboard. After
+deployment, submit an attestation with:
 
 ```sh
 npm run start --workspace raiseveil-cli -- verify <contract-address> \

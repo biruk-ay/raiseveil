@@ -13,6 +13,24 @@ import type { WalletContext } from "./wallet.js";
 
 export type Providers = ContractProviders<AppContract>;
 
+export async function assertNetworkSupportsRaiseVeil(
+  config: Config,
+): Promise<void> {
+  const publicDataProvider = indexerPublicDataProvider(config.indexer, config.indexerWS);
+
+  try {
+    const protocolVersion = await publicDataProvider.queryLatestProtocolVersion();
+    if (BigInt(protocolVersion) < ProtocolVersion.V9NativeForkVersion) {
+      throw new Error(
+        `The selected network is at protocol version ${protocolVersion}; ` +
+        `RaiseVeil requires ledger v9 (protocol version ${ProtocolVersion.V9NativeForkVersion}).`,
+      );
+    }
+  } finally {
+    await publicDataProvider.dispose();
+  }
+}
+
 async function createWalletProviders(
   wallet: WalletContext,
 ): Promise<{ walletProvider: Providers["walletProvider"]; midnightProvider: Providers["midnightProvider"] }> {

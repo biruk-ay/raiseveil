@@ -1,4 +1,5 @@
-import restify from 'restify';
+import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { timingSafeEqual } from 'node:crypto';
 import { getPublicKey, encodeTraderData, signTraderData } from './signing.js';
 import { traderData } from './trader/trader-data.js';
@@ -19,35 +20,39 @@ export function createServer(
   providerSk: bigint,
   providerId: number,
   sharedSecret: string,
-): restify.Server {
+): Hono {
   if (sharedSecret.length < 32) {
     throw new Error('The attestation shared secret must contain at least 32 characters');
   }
-  const server = restify.createServer({ name: 'raiseveil-attestation-api' });
-  server.use(restify.plugins.bodyParser());
+  const app = new Hono();
+  app.use('/attest', bodyLimit({ maxSize: 32 * 1024 }));
 
   const providerPk: JubjubPoint = getPublicKey(providerSk);
 
-  server.post('/attest', async (req: restify.Request, res: restify.Response, next: restify.Next) => {
-    const authorization = req.headers.authorization ?? '';
+  app.post('/attest', async (c) => {
+    const authorization = c.req.header('authorization') ?? '';
     const expectedAuthorization = `Bearer ${sharedSecret}`;
     const provided = Buffer.from(authorization);
     const expected = Buffer.from(expectedAuthorization);
     if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
-      res.send(401, { error: 'Unauthorized' });
-      return next();
+      return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    if (!isRecord(req.body)) {
-      res.send(400, { error: 'Expected a JSON body with token and userPubKeyHash' });
-      return next();
+    let requestBody: unknown;
+    try {
+      requestBody = await c.req.json();
+    } catch {
+      return c.json({ error: 'Expected a JSON body with token and userPubKeyHash' }, 400);
     }
 
-    const body = req.body as Partial<AttestationRequest>;
+    if (!isRecord(requestBody)) {
+      return c.json({ error: 'Expected a JSON body with token and userPubKeyHash' }, 400);
+    }
+
+    const body = requestBody as Partial<AttestationRequest>;
     if (typeof body.token !== 'string' || body.token.trim().length === 0 ||
         typeof body.userPubKeyHash !== 'string' || !/^\d+$/.test(body.userPubKeyHash)) {
-      res.send(400, { error: 'Required fields: non-empty token and decimal userPubKeyHash' });
-      return next();
+      return c.json({ error: 'Required fields: non-empty token and decimal userPubKeyHash' }, 400);
     }
 
     let data: TraderData;
@@ -55,8 +60,7 @@ export function createServer(
       data = await traderData(body.token);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown OANDA error';
-      res.send(502, { error: `Unable to retrieve OANDA trader data: ${message}` });
-      return next();
+      return c.json({ error: `Unable to retrieve OANDA trader data: ${message}` }, 502);
     }
 
     try {
@@ -89,15 +93,14 @@ export function createServer(
         userPubKeyHash: body.userPubKeyHash,
       };
 
-      res.send(200, response);
+      return c.json(response);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown signing error';
-      res.send(500, { error: `Unable to create attestation: ${message}` });
+      return c.json({ error: `Unable to create attestation: ${message}` }, 500);
     }
-    return next();
   });
 
-  server.get('/provider-info', (_req: restify.Request, res: restify.Response, next: restify.Next) => {
+  app.get('/provider-info', (c) => {
     const response: ProviderInfoResponse = {
       providerId,
       publicKey: {
@@ -105,18 +108,18 @@ export function createServer(
         y: providerPk.y.toString(),
       },
     };
-    res.send(200, response);
-    return next();
+    return c.json(response);
   });
 
-  server.get('/health', (_req: restify.Request, res: restify.Response, next: restify.Next) => {
+  app.get('/health', (c) => {
     const response: HealthResponse = {
       status: 'ok',
       providerId,
     };
-    res.send(200, response);
-    return next();
+    return c.json(response);
   });
 
-  return server;
+  app.notFound((c) => c.json({ error: 'Route not found' }, 404));
+
+  return app;
 }

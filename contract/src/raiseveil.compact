@@ -2,7 +2,7 @@ pragma language_version 0.27.0;
 
 import CompactStandardLibrary;
 
-export ledger trustedSignerPk: JubjubPoint;
+export sealed ledger trustedSignerPk: JubjubPoint;
 
 struct Trader {
     tradeCount: Field;
@@ -17,7 +17,7 @@ export ledger traderData: Trader;
 
 witness getAttestedTraderDataWitness(): [Trader, JubjubSchnorrSignature];
 
-export circuit setSignerPk(pk: JubjubPoint): [] {
+constructor(pk: JubjubPoint) {
     trustedSignerPk = disclose(pk);
 }
 

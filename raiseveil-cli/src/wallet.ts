@@ -10,6 +10,7 @@ import {
   UnshieldedWallet,
   WalletEntrySchema,
   WalletFacade,
+  WalletSeeds,
 } from "@midnight-ntwrk/wallet-sdk";
 import type { Config } from "./config.js";
 
@@ -59,6 +60,9 @@ export async function buildWallet(
 
   const walletConfiguration = {
     networkId: config.networkId,
+    provers: {
+      v9: { kind: "server" as const, url: new URL(config.proofServer) },
+    },
     indexerClientConnection: {
       indexerHttpUrl: config.indexer,
       indexerWsUrl: config.indexerWS,
@@ -70,20 +74,24 @@ export async function buildWallet(
     },
     txHistoryStorage: new InMemoryTransactionHistoryStorage(WalletEntrySchema),
   };
+  const walletSeeds = WalletSeeds.fromMasterSeed(seedBytes, {
+    unshieldedRole: Roles.EcdsaUnshielded,
+  });
 
   let facade: WalletFacade;
   try {
     facade = await WalletFacade.init({
       configuration: walletConfiguration,
       shielded: (walletConfig) =>
-        ShieldedWallet(walletConfig).startWithSeed(seedBytes),
+        ShieldedWallet(walletConfig).startWithSeed(walletSeeds.shielded),
       unshielded: (walletConfig) =>
         UnshieldedWallet({
           ...walletConfig,
           txHistoryStorage: new InMemoryTransactionHistoryStorage(WalletEntrySchema),
         }).startWithPublicKey(PublicKey.fromKeyStore(keystore)),
-      dust: (walletConfig) => DustWallet(walletConfig).startWithSeed(seedBytes),
+      dust: (walletConfig) => DustWallet(walletConfig).startWithSeed(walletSeeds.dust),
     });
+    await facade.start(walletSeeds);
   } finally {
     seedBytes.fill(0);
   }

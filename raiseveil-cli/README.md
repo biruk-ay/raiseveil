@@ -1,9 +1,8 @@
 # RaiseVeil CLI
 
-The dashboard requests a server-generated OANDA attestation for download. The
-CLI checks its signer against both a locally pinned public key and the deployed
-contract's configured trusted signer, then submits the contract's `verifyData`
-circuit. It intentionally does not set or replace the contract signer key.
+The CLI deploys the RaiseVeil contract with the trusted provider public key
+embedded in its sealed ledger, or submits a server-generated OANDA attestation
+to an existing contract after checking the signer's public key.
 
 ## Build
 
@@ -41,8 +40,8 @@ The wallet seed must be the existing wallet's 32-byte seed; do not generate a
 replacement if you intend to use an already-funded account. Set a strong,
 persistent `RAISEVEIL_PRIVATE_STATE_PASSWORD` yourself. The provider key
 coordinates must be decimal values independently verified against the
-deployed contract's `trustedSignerPk`; do not trust a key solely because the
-attestation API reports it.
+attestation provider's public key. The deployment command uses these values as
+the contract's immutable trusted signer key.
 
 Keep the wallet seed and OANDA token secret. Prefer injecting them through a
 secret manager rather than storing them in shell history or source control.
@@ -50,13 +49,25 @@ The CLI does not need the OANDA token or attestation API URL: the authenticated
 dashboard requests and downloads the signed attestation. The user hash is
 response metadata and is not included in the contract's signed message.
 
-## Verify trader data
+## Deploy and verify trader data
+
+Deploy the contract after starting the selected network's node, indexer, and
+proof server:
+
+```sh
+npm run start --workspace raiseveil-cli -- deploy
+```
+
+The command prints the contract address, transaction, and block. Link that
+address from the dashboard's contract-address field. The deployed signer key
+cannot be changed; redeploy if the provider key is incorrect.
+
+Then create an attestation from the dashboard and submit it:
 
 ```sh
 npm run start --workspace raiseveil-cli -- verify <contract-address> \
   --attestation-file ./raiseveil-attestation.json
 ```
 
-The contract must already have its trusted signer key initialized to the
-provider key pinned above. If the key is unset or different, verification
-stops without modifying contract state.
+Verification checks that the contract's sealed trusted signer key matches the
+provider key pinned above before submitting trader data.

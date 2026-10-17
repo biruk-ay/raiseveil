@@ -16,12 +16,12 @@ function formatValue(key: keyof TraderStats, value: string): string {
   return key === "tradeCount" ? Number(value).toLocaleString() : value;
 }
 
-export function StatsGrid({ stats }: { stats: TraderStats }) {
+export function StatsGrid({ stats, isSample = false }: { stats: TraderStats; isSample?: boolean }) {
   return (
     <dl className="stats-grid">
       {metrics.map(({ key, label }) => (
         <div className="stats-item" key={key}>
-          <dt>{label}</dt>
+          <dt>{isSample && key === "tradeCount" ? "Trade count (sample)" : label}</dt>
           <dd className={key === "averageReturn" && valueIsNegative(stats[key]) ? "is-negative" : ""}>
             {formatValue(key, stats[key])}
             {key === "averageReturn" ? <span className="stats-unit"> per trade</span> : null}

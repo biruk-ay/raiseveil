@@ -8,14 +8,44 @@ export interface VerifiedContractState {
   stats: RawTraderStats;
 }
 
+const PREPROD_INDEXER_HTTP_URL = "https://midnight-preprod.blockfrost.io/api/v0";
+const PREPROD_INDEXER_WS_URL = "wss://midnight-preprod.blockfrost.io/api/v0/ws";
+
+function withProjectId(endpoint: string, projectId: string): string {
+  const url = new URL(endpoint);
+  url.searchParams.set("project_id", projectId);
+  return url.toString();
+}
+
 function getNetworkConfig() {
-  const networkId = process.env.MIDNIGHT_NETWORK_ID ?? "undeployed";
+  const networkId =
+    process.env.MIDNIGHT_NETWORK_ID ??
+    (process.env.VERCEL === "1" ? "preprod" : "undeployed");
+  const projectId = process.env.BLOCKFROST_PROJECT_ID?.trim();
+  const preprodQueryURL = projectId
+    ? withProjectId(PREPROD_INDEXER_HTTP_URL, projectId)
+    : undefined;
+  const preprodSubscriptionURL = projectId
+    ? withProjectId(PREPROD_INDEXER_WS_URL, projectId)
+    : undefined;
   const queryURL =
-    process.env.MIDNIGHT_INDEXER_URL ?? "http://127.0.0.1:8088/api/v4/graphql";
+    process.env.MIDNIGHT_INDEXER_URL ??
+    (networkId === "preprod"
+      ? preprodQueryURL
+      : "http://127.0.0.1:8088/api/v4/graphql");
   const subscriptionURL =
-    process.env.MIDNIGHT_INDEXER_WS_URL ?? "ws://127.0.0.1:8088/api/v4/graphql/ws";
+    process.env.MIDNIGHT_INDEXER_WS_URL ??
+    (networkId === "preprod"
+      ? preprodSubscriptionURL
+      : "ws://127.0.0.1:8088/api/v4/graphql/ws");
   const expectedKeyX = process.env.RAISEVEIL_PROVIDER_PUBLIC_KEY_X;
   const expectedKeyY = process.env.RAISEVEIL_PROVIDER_PUBLIC_KEY_Y;
+
+  if (!queryURL || !subscriptionURL) {
+    throw new Error(
+      "Configure BLOCKFROST_PROJECT_ID or both Midnight indexer URLs for Preprod",
+    );
+  }
 
   if (!expectedKeyX || !/^\d+$/.test(expectedKeyX) || !expectedKeyY || !/^\d+$/.test(expectedKeyY)) {
     throw new Error("The expected provider public key must be configured as decimal coordinates");

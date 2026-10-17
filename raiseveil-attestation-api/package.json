@@ -12,13 +12,14 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@hono/node-server": "2.1.5",
     "raiseveil-contract": "0.1.0",
     "@midnight-ntwrk/midnight-js-network-id": "4.1.1",
     "@midnight-ntwrk/midnight-js-protocol": "4.1.1",
-    "restify": "^11.1.0"
+    "hono": "4.13.13"
   },
   "devDependencies": {
-    "@types/restify": "^8.5.12",
+    "@types/node": "^25.0.1",
     "tsx": "^4.19.0",
     "vitest": "^4.0.15"
   }
