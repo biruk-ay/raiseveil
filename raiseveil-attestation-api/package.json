@@ -1,0 +1,25 @@
+{
+  "name": "raiseveil-attestation-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "node --env-file=../.env dist/index.js",
+    "dev": "node --env-file=../.env --import tsx src/index.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "raiseveil-contract": "0.1.0",
+    "@midnight-ntwrk/midnight-js-network-id": "4.1.1",
+    "@midnight-ntwrk/midnight-js-protocol": "4.1.1",
+    "restify": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/restify": "^8.5.12",
+    "tsx": "^4.19.0",
+    "vitest": "^4.0.15"
+  }
+}

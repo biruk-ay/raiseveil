@@ -1,0 +1,36 @@
+{
+  "name": "raiseveil-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "raiseveil": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "npm run compact --workspace raiseveil-contract && npm run build --workspace raiseveil-contract && tsc",
+    "start": "node --env-file=../.env dist/cli.js",
+    "dev": "node --env-file=../.env --import tsx src/cli.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "0.20.0",
+    "@midnight-ntwrk/midnight-js-contracts": "5.0.0-rc.4",
+    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "5.0.0-rc.4",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "5.0.0-rc.4",
+    "@midnight-ntwrk/midnight-js-level-private-state-provider": "5.0.0-rc.4",
+    "@midnight-ntwrk/midnight-js-network-id": "5.0.0-rc.4",
+    "@midnight-ntwrk/midnight-js-node-zk-config-provider": "5.0.0-rc.4",
+    "@midnight-ntwrk/midnight-js-protocol": "5.0.0-rc.4",
+    "@midnight-ntwrk/midnight-js-types": "5.0.0-rc.4",
+    "@midnight-ntwrk/wallet-sdk": "2.0.0-rc.1",
+    "raiseveil-contract": "0.1.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.1",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.15"
+  }
+}

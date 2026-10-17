@@ -1,0 +1,15 @@
+node_modules/
+**/dist/
+.vite/
+*.tsbuildinfo
+logs
+*.log
+midnight-level-db
+coverage
+**/reports
+.npm
+.eslintcache
+.env
+**/.DS_Store
+.vscode/
+managed/

@@ -1,0 +1,39 @@
+pragma language_version 0.27.0;
+
+import CompactStandardLibrary;
+
+export ledger trustedSignerPk: JubjubPoint;
+
+struct Trader {
+    tradeCount: Field;
+    tradeVolume: Field;
+    averageTradeSize: Field;
+    averageReturn: Field;
+    startDate: Field;
+    lastTradeDate: Field;
+}
+
+export ledger traderData: Trader;
+
+witness getAttestedTraderDataWitness(): [Trader, JubjubSchnorrSignature];
+
+export circuit setSignerPk(pk: JubjubPoint): [] {
+    trustedSignerPk = disclose(pk);
+}
+
+export circuit verifyData(): [] {
+    const [data, signature] = getAttestedTraderDataWitness();
+
+    const msg: Vector<6, Field> = [
+        data.tradeCount,
+        data.tradeVolume,
+        data.averageTradeSize,
+        data.averageReturn,
+        data.startDate,
+        data.lastTradeDate
+    ];
+
+    assert(jubjubSchnorrVerify<6>(msg, signature, trustedSignerPk), "Attestation Failed");
+
+    traderData = disclose(data);
+}

@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wdth,wght@0,75,300..800;1,75,300..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wdth,wght@0,100,300..800;1,75,300..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Allison&display=swap');
+@import "tailwindcss";
+
+.allison-regular {
+  font-family: "Allison", cursive;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.open-sans-wdth-75 {
+  font-family: "Open Sans", sans-serif;
+  font-optical-sizing: auto;
+  /* font-weight: 400; */
+  /* font-style: normal; */
+  font-variation-settings:
+    "wdth" 75;
+}
+
+.open-sans {
+  font-family: "Open Sans", sans-serif;
+  font-optical-sizing: auto;
+  /* font-weight: 400; */
+  /* font-style: normal; */
+  font-variation-settings:
+    "wdth" 100;
+}
+
+@theme {
+  --color-main: rgba(179, 208, 213, 0.24);
+}
+
+@font-face {
+  font-family: Allison;
+  font-style: normal;
+  src: url("/Allison-Regular.ttf") format("truetype");
+}
