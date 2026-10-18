@@ -1,0 +1,153 @@
+{
+  "compiler-version": "0.35.0",
+  "compiler-commit": "debb05f9414b9d1e176741c2be289bb32233f0fc",
+  "language-version": "0.27.0",
+  "runtime-version": "0.20.0",
+  "circuits": [
+    {
+      "name": "verifyData",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    }
+  ],
+  "witnesses": [
+    {
+      "name": "getAttestedTraderDataWitness",
+      "arguments": [
+      ],
+      "result type": {
+        "type-name": "Tuple",
+        "types": [
+          {
+            "type-name": "Struct",
+            "name": "Trader",
+            "elements": [
+              {
+                "name": "tradeCount",
+                "type": {
+                  "type-name": "Field"
+                }
+              },
+              {
+                "name": "tradeVolume",
+                "type": {
+                  "type-name": "Field"
+                }
+              },
+              {
+                "name": "averageTradeSize",
+                "type": {
+                  "type-name": "Field"
+                }
+              },
+              {
+                "name": "averageReturn",
+                "type": {
+                  "type-name": "Field"
+                }
+              },
+              {
+                "name": "startDate",
+                "type": {
+                  "type-name": "Field"
+                }
+              },
+              {
+                "name": "lastTradeDate",
+                "type": {
+                  "type-name": "Field"
+                }
+              }
+            ]
+          },
+          {
+            "type-name": "Struct",
+            "name": "JubjubSchnorrSignature",
+            "elements": [
+              {
+                "name": "announcement",
+                "type": {
+                  "type-name": "JubjubPoint"
+                }
+              },
+              {
+                "name": "response",
+                "type": {
+                  "type-name": "Field"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "contracts": [
+  ],
+  "ledger": [
+    {
+      "name": "trustedSignerPk",
+      "index": 0,
+      "exported": true,
+      "storage": "Cell",
+      "type": {
+        "type-name": "JubjubPoint"
+      }
+    },
+    {
+      "name": "traderData",
+      "index": 1,
+      "exported": true,
+      "storage": "Cell",
+      "type": {
+        "type-name": "Struct",
+        "name": "Trader",
+        "elements": [
+          {
+            "name": "tradeCount",
+            "type": {
+              "type-name": "Field"
+            }
+          },
+          {
+            "name": "tradeVolume",
+            "type": {
+              "type-name": "Field"
+            }
+          },
+          {
+            "name": "averageTradeSize",
+            "type": {
+              "type-name": "Field"
+            }
+          },
+          {
+            "name": "averageReturn",
+            "type": {
+              "type-name": "Field"
+            }
+          },
+          {
+            "name": "startDate",
+            "type": {
+              "type-name": "Field"
+            }
+          },
+          {
+            "name": "lastTradeDate",
+            "type": {
+              "type-name": "Field"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

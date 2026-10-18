@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run build --workspace raiseveil-contract && tsc -p tsconfig.json",
     "start": "node dist/src/index.js",
     "dev": "tsx watch src/index.ts",
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",

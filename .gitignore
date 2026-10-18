@@ -13,4 +13,6 @@ coverage
 **/.DS_Store
 .vscode/
 managed/
+!/contract/src/managed/
+!/contract/src/managed/**
 .neon

@@ -199,6 +199,9 @@ local development. The attestation service points Vercel directly to its
 TypeScript Node function entrypoint, `src/handler.ts`, and keeps its existing
 standalone server for local development. Vercel needs this source file to exist
 before its build step; `dist/` is generated and intentionally not committed.
+The Compact-generated contract files under `contract/src/managed/` are kept in
+Git so the independently built API service can compile against the contract
+workspace without needing the Compact compiler during Vercel's build.
 
 Connect the repository to Vercel with the repository root as the project root,
 then configure these environment variables in the Vercel project:

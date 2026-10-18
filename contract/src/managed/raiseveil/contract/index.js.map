@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "file": "index.js",
+  "sourceRoot": "../../../../",
+  "sources": ["src/raiseveil.compact", "compiler/standard-library.compact", "compiler/zkir-v3-library.compact"],
+  "names": [],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EAmBA;;;;;;;;;;;;;MAIA,AAAA,UAeC;;;;;;;;;;;;;;;;;;;;;;;OAAA;;;;GAjBA;EAFD;;;;;UAAY,IAAe;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IAf3B;;;;;;;;;yEAAkD;IAWlD;;;;;;;;;yEAAiC;IAK7B;;;;;;;2HAA2B,IAAE;;yEAAd;;;;;;;GAClB;EC2VD,AAAA,uBACiB,OACA,aACA;2CAER;;UACD,2BAA2B;UAA3B,iBAAA;UAAA,aAAA;UACA;qEAC2D;;qEACA;wEACD;wEACA;mDACb;UAE7C,MAAI;UAEJ,+BAAqB;UACrB,sBAAY,8BAAoB,MAAI;yBAEnC,OAAO;;ECnYhB,AAAA,iBAAA;mEAAA;;;EAAA,AAAA,gBAAA;mDAAA;;;EAAA,AAAA,gBAAA;mDAAA;;;EAAA,AAAA,SAAA,KAAA;4CAAA,KAAA;;;EAAA,AAAA,SAAA,KAAA;4CAAA,KAAA;;;EAAA,AAAA,kBAAA;qDAAA;;;EFiBA,AAAA,+BAAyE;;0DAAzE,4BAAyE;;;;;;;;;;;;;;GAAA;EAMzE,AAAA,mBAeC;UAdS,wBAAkD;;UAAlD,MAAiB,GAAjB,wBAAiB;UAAjB,WAAiB,GAAjB,wBAAiB;UAEjB,KAOL,IANG,MAAI;mBACJ,MAAI;mBACJ,MAAI;mBACJ,MAAI;mBACJ,MAAI;mBACJ,MAAI;wDAGsB,KAAG;wDAAE,WAAS;gFAAE;;;;;;;;;;;qJAAe;;IAE7D;;;;;;;2HAAsB,MAAI;;yEAAhB;;GACb;;;;;;;;;;;;;;;;;;;;;;;;;;;;IAlCD;qCAAA;;;;;;;;;;;0GAAkD;KAAA;IAWlD;qCAAA;;;;;;;;;;;0GAAiC;KAAA;;;;;;;;;;;;;;;;;;;;"
+}
