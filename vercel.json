@@ -17,7 +17,7 @@
     "raiseveil-attestation-api": {
       "root": "raiseveil-attestation-api",
       "runtime": "node",
-      "entrypoint": "dist/handler.js",
+      "entrypoint": "src/handler.ts",
       "buildCommand": "npm run build"
     },
     "raiseveil-ui": {
