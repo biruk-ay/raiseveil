@@ -1,11 +1,13 @@
 # RaiseVeil
 
+<img src="raiseveil-ui/src/assets/midnight.jpg" alt="Midnight" width=20 height=20>
+
 RaiseVeil is a marketplace for trader records that can be checked against
 publicly verifiable smart-contract data. A trader connects an OANDA account,
 requests a signed summary of their trading history, and uses the RaiseVeil CLI
-to submit that summary to a Midnight contract. Once the contract publishes the
-verified values, the trader can link it to a public profile for others to
-explore.
+powered midnight to submit that summary to a Midnight contract. Once the contract
+publishes the verified values, the trader can link it to a public profile for others
+to explore.
 
 RaiseVeil is not an investment service. Public stats describe past activity and
 are not investment advice or a guarantee of future results.
@@ -193,6 +195,9 @@ service binding to the attestation service; Vercel injects
 `RAISEVEIL_ATTESTATION_API_URL` at runtime. Do not set that variable manually
 in Vercel. Locally, `.env` can continue to point it at
 `http://127.0.0.1:3100`.
+The UI service rewrites unmatched paths to its Vite `index.html` so browser
+routes such as `/market`, `/login`, and `/signup` load the SPA on direct visits
+and refreshes.
 
 The API exports its Hono app for Vercel while retaining the Node server for
 local development. The attestation service points Vercel directly to its
