@@ -4,6 +4,7 @@
     "raiseveil-api": {
       "root": "raiseveil-api",
       "framework": "hono",
+      "entrypoint": "dist/src/index.js",
       "buildCommand": "npm run build",
       "bindings": [
         {

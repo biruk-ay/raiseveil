@@ -17,3 +17,5 @@ managed/
 !/contract/src/managed/**
 raiseveil-ui/public/raiseveil-contract/
 .neon
+.vercel
+.env*
