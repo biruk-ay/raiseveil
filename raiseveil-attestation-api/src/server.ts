@@ -1,8 +1,14 @@
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { timingSafeEqual } from 'node:crypto';
-import { getPublicKey, encodeTraderData, signTraderData } from './signing.js';
-import { traderData } from './trader/trader-data.js';
+import {
+  encodeSubjectId,
+  encodeTraderData,
+  getActivityPolicyId,
+  getPublicKey,
+  signTraderData,
+} from './signing.js';
+import { NoFilledTradesError, traderData } from './trader/trader-data.js';
 import type {
   AttestationRequest,
   AttestationResponse,
@@ -51,21 +57,28 @@ export function createServer(
 
     const body = requestBody as Partial<AttestationRequest>;
     if (typeof body.token !== 'string' || body.token.trim().length === 0 ||
-        typeof body.userPubKeyHash !== 'string' || !/^\d+$/.test(body.userPubKeyHash)) {
-      return c.json({ error: 'Required fields: non-empty token and decimal userPubKeyHash' }, 400);
+        typeof body.userPubKeyHash !== 'string' || !/^[a-fA-F0-9]{64}$/.test(body.userPubKeyHash)) {
+      return c.json({ error: 'Required fields: non-empty token and 32-byte hexadecimal userPubKeyHash' }, 400);
     }
 
     let data: TraderData;
     try {
       data = await traderData(body.token);
     } catch (err: unknown) {
+      if (err instanceof NoFilledTradesError) {
+        return c.json({
+          error: 'No completed OANDA trades were found. Only executed fills count; pending or cancelled orders do not.',
+        }, 422);
+      }
       const message = err instanceof Error ? err.message : 'Unknown OANDA error';
       return c.json({ error: `Unable to retrieve OANDA trader data: ${message}` }, 502);
     }
 
     try {
       const encoded = encodeTraderData(data);
-      const signature = signTraderData(providerSk, data);
+      const signature = signTraderData(providerSk, data, body.userPubKeyHash);
+      const subjectId = encodeSubjectId(body.userPubKeyHash);
+      const activityPolicyId = getActivityPolicyId(data);
       const response: AttestationResponse = {
         signature: {
           announcement: {
@@ -81,6 +94,8 @@ export function createServer(
           averageReturn: encoded.averageReturn.toString(),
           startDate: encoded.startDate.toString(),
           lastTradeDate: encoded.lastTradeDate.toString(),
+          subjectId: subjectId.toString(),
+          activityPolicyId: activityPolicyId.toString(),
         },
         stats: {
           tradeCount: data.tradeCount,

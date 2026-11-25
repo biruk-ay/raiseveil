@@ -1,12 +1,25 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { deployContract, findDeployedContract } from "@midnight-ntwrk/midnight-js-contracts";
+import type { ConnectedAPI } from "@midnightntwrk/dapp-connector-api";
 import { authClient } from "../lib/auth-client";
 import { apiRequest, type DashboardResponse } from "../lib/api";
 import { demoDashboard, demoModeEnabled, endDemoSession, hasDemoSession } from "../lib/demo";
+import { createBrowserProviders, MIDNIGHT_NETWORK_ID } from "../lib/midnight";
+import { compiledContract, type RaiseVeilPrivateState } from "../lib/raiseveil";
 import { StatsGrid } from "./stats";
 import "./workspace.css";
 
-interface AttestationEnvelope {
-  attestation: unknown;
+function walletErrorMessage(error: unknown): string | undefined {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "type" in error &&
+    error.type === "DAppConnectorAPIError" &&
+    "reason" in error &&
+    typeof error.reason === "string"
+  ) {
+    return error.reason;
+  }
 }
 
 export function Dashboard() {
@@ -15,7 +28,7 @@ export function Dashboard() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [token, setToken] = useState("");
-  const [contractAddress, setContractAddress] = useState("");
+  const [wallet, setWallet] = useState<{ api: ConnectedAPI; name: string } | null>(null);
   const [displayName, setDisplayName] = useState(() => isDemo ? demoDashboard.profile.displayName : "");
   const [bio, setBio] = useState(() => isDemo ? demoDashboard.profile.bio : "");
   const [isPublic, setIsPublic] = useState(true);
@@ -27,7 +40,6 @@ export function Dashboard() {
       setDisplayName(result.profile.displayName);
       setBio(result.profile.bio);
       setIsPublic(result.profile.isPublic ?? true);
-      setContractAddress(result.profile.contractAddress ?? "");
     } catch (error) {
       if (error instanceof Error && error.message === "Sign in to continue") {
         window.location.assign("/login");
@@ -50,7 +62,6 @@ export function Dashboard() {
         setDisplayName(result.profile.displayName);
         setBio(result.profile.bio);
         setIsPublic(result.profile.isPublic ?? true);
-        setContractAddress(result.profile.contractAddress ?? "");
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -85,19 +96,29 @@ export function Dashboard() {
     }
   }
 
-  async function linkContract(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function connectWallet() {
     setBusy(true);
     setNotice("");
     try {
-      await apiRequest("/api/me/contract", {
-        method: "POST",
-        body: JSON.stringify({ contractAddress }),
-      });
-      setNotice("RaiseVeil contract linked. Your profile now reflects its public ledger data.");
-      await loadDashboard();
+      const lace = Object.values(globalThis.midnight ?? {}).find((candidate) =>
+        candidate.name.toLowerCase().includes("lace"),
+      );
+      if (!lace) {
+        throw new Error("Lace was not detected. Install or enable the Midnight Lace wallet extension.");
+      }
+
+      const api = await lace.connect(MIDNIGHT_NETWORK_ID);
+      const configuration = await api.getConfiguration();
+      if (configuration.networkId !== MIDNIGHT_NETWORK_ID) {
+        throw new Error(`Select the Midnight ${MIDNIGHT_NETWORK_ID} network in Lace, then connect again.`);
+      }
+      setWallet({ api, name: lace.name });
+      setNotice(`${lace.name} connected on Preprod.`);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Unable to read that contract");
+      setNotice(
+        walletErrorMessage(error) ??
+          (error instanceof Error ? error.message : "Unable to connect a Midnight wallet"),
+      );
     } finally {
       setBusy(false);
     }
@@ -121,27 +142,114 @@ export function Dashboard() {
     }
   }
 
-  async function generateAttestation() {
+  async function createAndSubmitCredential() {
+    if (!wallet || !data) {
+      setNotice("Connect Lace before submitting your activity credential.");
+      return;
+    }
+
     setBusy(true);
     setNotice("");
+    let providers: Awaited<ReturnType<typeof createBrowserProviders>> | undefined;
     try {
-      const result = await apiRequest<AttestationEnvelope>("/api/me/attestation", {
+      const [{ attestation }, { publicKey }] = await Promise.all([
+        apiRequest<{
+          attestation: {
+            signature: {
+              announcement: { x: string; y: string };
+              response: string;
+            };
+            message: Record<string, string>;
+          };
+        }>("/api/me/attestation", {
+          method: "POST",
+          body: JSON.stringify({}),
+        }),
+        apiRequest<{ publicKey: { x: string; y: string } }>(
+          "/api/me/attestation/provider-key",
+        ),
+      ]);
+      const privateState: RaiseVeilPrivateState = {
+        tradeCount: BigInt(attestation.message.tradeCount),
+        tradeVolume: BigInt(attestation.message.tradeVolume),
+        averageTradeSize: BigInt(attestation.message.averageTradeSize),
+        averageReturn: BigInt(attestation.message.averageReturn),
+        startDate: BigInt(attestation.message.startDate),
+        lastTradeDate: BigInt(attestation.message.lastTradeDate),
+        subjectId: BigInt(attestation.message.subjectId),
+        activityPolicyId: BigInt(attestation.message.activityPolicyId),
+        attestationSignature: {
+          announcement: {
+            x: BigInt(attestation.signature.announcement.x),
+            y: BigInt(attestation.signature.announcement.y),
+          },
+          response: BigInt(attestation.signature.response),
+        },
+      };
+
+      const dust = await wallet.api.getDustBalance();
+      if (dust.balance <= 0n) {
+        throw new Error("Your Lace wallet has no DUST available for transaction fees.");
+      }
+
+      providers = await createBrowserProviders(wallet.api);
+      const pendingKey = `raiseveil-pending-contract-${data.user.id}`;
+      const pendingAddress = sessionStorage.getItem(pendingKey);
+      const existingAddress = pendingAddress ?? data.profile.contractAddress;
+      let contractAddress: string;
+      let contract;
+
+      if (existingAddress) {
+        contractAddress = existingAddress;
+        contract = await findDeployedContract(providers, {
+          contractAddress,
+          compiledContract,
+          privateStateId: "raiseveil",
+          initialPrivateState: privateState,
+        });
+      } else {
+        const deployed = await deployContract(providers, {
+          compiledContract,
+          privateStateId: "raiseveil",
+          initialPrivateState: privateState,
+          args: [{ x: BigInt(publicKey.x), y: BigInt(publicKey.y) }],
+        });
+        contract = deployed;
+        contractAddress = deployed.deployTxData.public.contractAddress;
+        sessionStorage.setItem(pendingKey, contractAddress);
+      }
+
+      try {
+        const tx = await contract.callTx.verifyData();
+        if (tx.public.status !== "SucceedEntirely") {
+          throw new Error(`Activity credential transaction did not succeed (${tx.public.status}).`);
+        }
+      } catch (error) {
+        try {
+          await apiRequest("/api/me/contract", {
+            method: "POST",
+            body: JSON.stringify({ contractAddress }),
+          });
+          sessionStorage.removeItem(pendingKey);
+          setNotice("Your activity credential is already confirmed on Midnight.");
+          await loadDashboard();
+          return;
+        } catch {
+          throw error;
+        }
+      }
+
+      await apiRequest("/api/me/contract", {
         method: "POST",
-        body: JSON.stringify({}),
+        body: JSON.stringify({ contractAddress }),
       });
-      const file = new Blob([JSON.stringify(result.attestation, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(file);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = "raiseveil-attestation.json";
-      anchor.click();
-      URL.revokeObjectURL(url);
-      setNotice("Attestation downloaded. Use it with the RaiseVeil CLI to submit the proof.");
+      sessionStorage.removeItem(pendingKey);
+      setNotice("Your activity credential was verified on Midnight and your profile is updated.");
+      await loadDashboard();
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Unable to create an attestation");
+      setNotice(error instanceof Error ? error.message : "Unable to submit your activity credential");
     } finally {
+      await providers?.dispose();
       setBusy(false);
     }
   }
@@ -211,7 +319,11 @@ export function Dashboard() {
                   </span>
                 )}
               </div>
-              {data.profile.stats ? (
+              {data.profile.activityBadge === "1" ? (
+                <div className="activity-badge" role="status">
+                  100+ fill activity · 180+ days
+                </div>
+              ) : data.profile.stats ? (
                 <StatsGrid stats={data.profile.stats} isSample={isDemo} />
               ) : (
                 <div className="empty-state">
@@ -285,10 +397,18 @@ export function Dashboard() {
                 )}
                 {data.broker && !isDemo && (
                   <div className="attestation-action">
-                    <button className="button button--soft" disabled={busy} onClick={() => void generateAttestation()} type="button">
-                      Create signed attestation
+                    <button
+                      className="button button--soft"
+                      disabled={busy || data.profile.activityBadge === "1"}
+                      onClick={() => wallet ? void createAndSubmitCredential() : void connectWallet()}
+                      type="button"
+                    >
+                      {wallet ? "Verify and publish activity badge" : "Connect Lace wallet"}
                     </button>
-                    <p>Download the signed data, then submit it with the local CLI and proof server.</p>
+                    <p>{wallet
+                      ? "Your wallet proves and submits the signed credential. Approve each transaction in Lace."
+                      : "Connect Lace on Preprod. Eligible OANDA history requires at least 100 executed fills spanning 180 days."
+                    }</p>
                   </div>
                 )}
               </section>
@@ -297,7 +417,7 @@ export function Dashboard() {
                 <div className="section-heading">
                   <div>
                     <h2>On-chain source</h2>
-                    <p>Link the deployed RaiseVeil contract you verified.</p>
+                    <p>Your individual RaiseVeil contract is deployed and linked from the dashboard.</p>
                   </div>
                 </div>
                 {isDemo ? (
@@ -305,23 +425,16 @@ export function Dashboard() {
                     <h3>No live contract is linked</h3>
                     <p>Sample figures above are for preview only and are not read from Midnight.</p>
                   </div>
+                ) : data.profile.contractAddress ? (
+                  <div className="connection-details">
+                    <strong>RaiseVeil activity credential</strong>
+                    <code>{data.profile.contractAddress}</code>
+                  </div>
                 ) : (
-                  <form className="workspace-form" onSubmit={(event) => void linkContract(event)}>
-                    <label className="workspace-label" htmlFor="contract-address">Contract address</label>
-                    <input
-                      id="contract-address"
-                      onChange={(event) => setContractAddress(event.currentTarget.value)}
-                      placeholder="Midnight contract address"
-                      required
-                      value={contractAddress}
-                    />
-                    <p className="field-help">
-                      The API checks the configured signer and reads only the public ledger fields.
-                    </p>
-                    <button className="button button--dark" disabled={busy} type="submit">
-                      Read verified contract
-                    </button>
-                  </form>
+                  <div className="empty-state">
+                    <h3>No contract linked yet</h3>
+                    <p>Connect Lace and submit an eligible credential to deploy and link your contract.</p>
+                  </div>
                 )}
               </section>
             </div>

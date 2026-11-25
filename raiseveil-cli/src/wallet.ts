@@ -21,6 +21,7 @@ globalThis.WebSocket = WebSocket;
 export interface WalletContext {
   facade: WalletFacade;
   accountId: string;
+  keystore: ReturnType<typeof createKeystore>;
 }
 
 function deriveUnshieldedSecretKey(seed: Uint8Array): Uint8Array {
@@ -99,5 +100,6 @@ export async function buildWallet(
   return {
     facade,
     accountId: keystore.getBech32Address().toString(),
+    keystore,
   };
 }

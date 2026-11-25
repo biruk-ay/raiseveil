@@ -1,6 +1,11 @@
 import { FIELD_MODULUS } from '@midnight-ntwrk/compact-runtime';
 import { describe, expect, it } from 'vitest';
-import { encodeTraderData } from '../src/signing.js';
+import {
+  ACTIVITY_POLICY_ID,
+  encodeSubjectId,
+  encodeTraderData,
+  getActivityPolicyId,
+} from '../src/signing.js';
 
 describe('encodeTraderData', () => {
   it('encodes exactly the six fields verified by the Compact contract', () => {
@@ -51,5 +56,30 @@ describe('encodeTraderData', () => {
     expect(() => encodeTraderData({ ...data, tradeVolume: Number.NaN })).toThrow(
       'tradeVolume must be a finite number',
     );
+  });
+
+  it('assigns policy 1 only to at least 100 fills spanning at least 180 days', () => {
+    const base = {
+      tradeVolume: 20,
+      averageTradeSize: 20,
+      averageReturn: 0,
+      startDate: new Date('2026-01-01T00:00:00Z'),
+      lastTradeDate: new Date('2026-06-30T00:00:00Z'),
+    };
+    expect(getActivityPolicyId({ ...base, tradeCount: 100 })).toBe(ACTIVITY_POLICY_ID);
+    expect(getActivityPolicyId({
+      ...base,
+      tradeCount: 99,
+    })).toBe(0n);
+    expect(getActivityPolicyId({
+      ...base,
+      tradeCount: 100,
+      lastTradeDate: new Date('2026-06-29T23:59:59Z'),
+    })).toBe(0n);
+  });
+
+  it('encodes a 32-byte subject identifier deterministically', () => {
+    const subject = '01'.repeat(32);
+    expect(encodeSubjectId(subject)).toBe(BigInt(`0x${subject}`));
   });
 });

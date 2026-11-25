@@ -22,9 +22,20 @@ export function getPublicKey(sk: bigint): JubjubPoint {
   return jubjubSchnorrVerifyingKey(sk);
 }
 
-const msgDescriptor = new CompactTypeVector(6, CompactTypeField);
+const msgDescriptor = new CompactTypeVector(8, CompactTypeField);
 // Volume and averages are signed with five decimal places of fixed-point precision.
 const DATA_SCALE = 100_000n;
+export const ACTIVITY_POLICY_ID = 1n;
+export const ACTIVITY_POLICY_MIN_FILLS = 100;
+export const ACTIVITY_POLICY_MIN_DURATION_MS = 180 * 24 * 60 * 60 * 1000;
+
+export function getActivityPolicyId(data: TraderData): bigint {
+  const durationMs = data.lastTradeDate.getTime() - data.startDate.getTime();
+  return data.tradeCount >= ACTIVITY_POLICY_MIN_FILLS &&
+    durationMs >= ACTIVITY_POLICY_MIN_DURATION_MS
+    ? ACTIVITY_POLICY_ID
+    : 0n;
+}
 
 function encodeField(value: number, fieldName: string, allowNegative = false): bigint {
   if (!Number.isFinite(value)) {
@@ -59,6 +70,17 @@ function encodeInteger(value: number, fieldName: string): bigint {
   return BigInt(value);
 }
 
+export function encodeSubjectId(subjectId: string): bigint {
+  if (!/^[a-fA-F0-9]{64}$/.test(subjectId)) {
+    throw new Error("subjectId must be a 32-byte hexadecimal value");
+  }
+  const encoded = BigInt(`0x${subjectId}`);
+  if (encoded >= FIELD_MODULUS) {
+    return encoded % FIELD_MODULUS;
+  }
+  return encoded;
+}
+
 export function encodeTraderData(data: TraderData): {
   tradeCount: bigint;
   tradeVolume: bigint;
@@ -90,7 +112,11 @@ export function sign(sk: bigint, msg: bigint[]): JubjubSchnorrSignature {
   return jubjubSchnorrSign(msgDescriptor, msg, sk);
 }
 
-export function signTraderData(sk: bigint, data: TraderData): JubjubSchnorrSignature {
+export function signTraderData(
+  sk: bigint,
+  data: TraderData,
+  subjectId: string,
+): JubjubSchnorrSignature {
   const encoded = encodeTraderData(data);
   const msg = [
     encoded.tradeCount,
@@ -99,6 +125,8 @@ export function signTraderData(sk: bigint, data: TraderData): JubjubSchnorrSigna
     encoded.averageReturn,
     encoded.startDate,
     encoded.lastTradeDate,
+    encodeSubjectId(subjectId),
+    getActivityPolicyId(data),
   ];
   return sign(sk, msg);
 }

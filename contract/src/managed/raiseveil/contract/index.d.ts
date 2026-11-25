@@ -10,7 +10,9 @@ export type Witnesses<PS> = {
                                                                                             },
                                                                                             { announcement: __compactRuntime.JubjubPoint,
                                                                                               response: bigint
-                                                                                            }]];
+                                                                                            },
+                                                                                            bigint,
+                                                                                            bigint]];
 }
 
 export type ImpureCircuits<PS> = {
@@ -30,13 +32,13 @@ export type Circuits<PS> = {
 
 export type Ledger = {
   readonly trustedSignerPk: __compactRuntime.JubjubPoint;
-  readonly traderData: { tradeCount: bigint,
-                         tradeVolume: bigint,
-                         averageTradeSize: bigint,
-                         averageReturn: bigint,
-                         startDate: bigint,
-                         lastTradeDate: bigint
-                       };
+  readonly activityBadge: bigint;
+  usedActivityCredentials: {
+    isEmpty(): boolean;
+    size(): bigint;
+    member(elem_0: Uint8Array): boolean;
+    [Symbol.iterator](): Iterator<Uint8Array>
+  };
 }
 
 export declare class Contract<PS = any, W extends Witnesses<PS> = Witnesses<PS>> {

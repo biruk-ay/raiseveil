@@ -156,7 +156,15 @@ export function Marketplace() {
                     <a className="text-link" href={`/trader/${trader.slug}`}>View profile</a>
                   </div>
                 </div>
-                {trader.stats && <StatsGrid stats={trader.stats} isSample={demoModeEnabled} />}
+                {trader.activityBadge === "1" ? (
+                  <div className="activity-badge" role="status">
+                    100+ fill activity · 180+ days
+                  </div>
+                ) : trader.stats ? (
+                  <StatsGrid stats={trader.stats} isSample={demoModeEnabled} />
+                ) : (
+                  <p className="field-help">No verified activity credential is published.</p>
+                )}
               </article>
             ))}
           </div>

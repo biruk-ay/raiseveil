@@ -8,6 +8,13 @@
       "when": 1792192899324,
       "tag": "0000_tidy_iceman",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792330000000,
+      "tag": "0001_activity_badge",
+      "breakpoints": true
     }
   ]
 }

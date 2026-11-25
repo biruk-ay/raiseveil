@@ -250,6 +250,17 @@ textarea {
   text-align: right;
 }
 
+.activity-badge {
+  margin-top: 20px;
+  border: 1px solid #d7e8e2;
+  border-radius: 6px;
+  padding: 14px 16px;
+  background: #edf7f3;
+  color: #16775f;
+  font-size: 12px;
+  font-weight: 650;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

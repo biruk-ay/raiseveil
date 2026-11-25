@@ -16,6 +16,8 @@ export interface AttestationResponse {
     averageReturn: string;
     startDate: string;
     lastTradeDate: string;
+    subjectId: string;
+    activityPolicyId: string;
   };
   stats: {
     tradeCount: number;

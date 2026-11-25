@@ -107,7 +107,11 @@ export function PublicProfile({ slug }: { slug: string }) {
                 verified, and are not investment advice.
               </p>
             )}
-            {profile.stats ? (
+            {profile.activityBadge === "1" ? (
+              <div className="activity-badge" role="status">
+                100+ fill activity · 180+ days
+              </div>
+            ) : profile.stats ? (
               <StatsGrid stats={profile.stats} isSample={demoModeEnabled} />
             ) : (
               <div className="empty-state">

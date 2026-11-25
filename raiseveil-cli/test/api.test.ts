@@ -17,6 +17,8 @@ function validAttestation() {
       averageReturn: "25000",
       startDate: "1704067200000",
       lastTradeDate: "1704153600000",
+      subjectId: "42",
+      activityPolicyId: "1",
     },
     stats: {
       tradeCount: 4,
@@ -26,7 +28,7 @@ function validAttestation() {
       startDate: "2024-01-01T00:00:00.000Z",
       lastTradeDate: "2024-01-02T00:00:00.000Z",
     },
-    userPubKeyHash: "42",
+    userPubKeyHash: "ab".repeat(32),
   };
 }
 
@@ -47,7 +49,7 @@ describe("attestation files", () => {
         response: "13",
       },
       message: { tradeCount: "4", averageReturn: "25000" },
-      userPubKeyHash: "42",
+      userPubKeyHash: "ab".repeat(32),
     });
   });
 
@@ -67,7 +69,7 @@ describe("attestation files", () => {
 
     await expect(readAttestationFile(path)).resolves.toMatchObject({
       message: { tradeCount: "4" },
-      userPubKeyHash: "42",
+      userPubKeyHash: "ab".repeat(32),
     });
   });
 

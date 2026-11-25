@@ -121,6 +121,7 @@ export const traderSnapshots = pgTable(
     averageReturn: numeric("average_return", { precision: 78, scale: 0 }).notNull(),
     startDate: numeric("start_date", { precision: 20, scale: 0 }).notNull(),
     lastTradeDate: numeric("last_trade_date", { precision: 20, scale: 0 }).notNull(),
+    activityBadge: numeric("activity_badge", { precision: 78, scale: 0 }).notNull().default("0"),
     observedAt: timestamp("observed_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("trader_snapshots_observed_at_idx").on(table.observedAt)],

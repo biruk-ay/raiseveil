@@ -15,4 +15,5 @@ coverage
 managed/
 !/contract/src/managed/
 !/contract/src/managed/**
+raiseveil-ui/public/raiseveil-contract/
 .neon

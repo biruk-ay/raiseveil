@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { FIELD_MODULUS } from "@midnight-ntwrk/compact-runtime";
 import { and, desc, eq, isNotNull, ilike, sql } from "drizzle-orm";
 import { Hono, type Context, type Next } from "hono";
@@ -6,10 +6,9 @@ import { auth, type AuthSession } from "../auth/index.js";
 import { db } from "../db/client.js";
 import { brokerConnections, traderProfiles, traderSnapshots, user } from "../db/schema.js";
 import { decryptCredential, encryptCredential } from "../services/credentials.js";
-import { requestSignedAttestation } from "../services/attestation.js";
+import { AttestationServiceError, requestSignedAttestation } from "../services/attestation.js";
 import { readVerifiedContract } from "../services/midnight.js";
 import { validateOandaToken } from "../services/oanda.js";
-import { toPublicTraderStats } from "../services/trader-stats.js";
 
 type Variables = {
   user: AuthSession["user"];
@@ -103,6 +102,7 @@ api.get("/api/market/traders", async (c) => {
       tradeVolume: traderSnapshots.tradeVolume,
       averageTradeSize: traderSnapshots.averageTradeSize,
       averageReturn: traderSnapshots.averageReturn,
+      activityBadge: traderSnapshots.activityBadge,
       startDate: traderSnapshots.startDate,
       lastTradeDate: traderSnapshots.lastTradeDate,
       observedAt: traderSnapshots.observedAt,
@@ -126,14 +126,8 @@ api.get("/api/market/traders", async (c) => {
       displayName: row.displayName,
       bio: row.bio,
       contractAddress: row.contractAddress,
-      stats: toPublicTraderStats({
-        tradeCount: BigInt(row.tradeCount),
-        tradeVolume: BigInt(row.tradeVolume),
-        averageTradeSize: BigInt(row.averageTradeSize),
-        averageReturn: BigInt(row.averageReturn),
-        startDate: BigInt(row.startDate),
-        lastTradeDate: BigInt(row.lastTradeDate),
-      }),
+      stats: null,
+      activityBadge: BigInt(row.activityBadge).toString(),
       observedAt: row.observedAt.toISOString(),
     })),
   });
@@ -152,6 +146,7 @@ api.get("/api/profiles/:slug", async (c) => {
       averageReturn: traderSnapshots.averageReturn,
       startDate: traderSnapshots.startDate,
       lastTradeDate: traderSnapshots.lastTradeDate,
+      activityBadge: traderSnapshots.activityBadge,
       observedAt: traderSnapshots.observedAt,
     })
     .from(traderProfiles)
@@ -169,22 +164,8 @@ api.get("/api/profiles/:slug", async (c) => {
     return c.json({ error: "Public trader profile not found" }, 404);
   }
 
-  const stats =
-    row.tradeCount === null ||
-    row.tradeVolume === null ||
-    row.averageTradeSize === null ||
-    row.averageReturn === null ||
-    row.startDate === null ||
-    row.lastTradeDate === null
-      ? null
-      : toPublicTraderStats({
-          tradeCount: BigInt(row.tradeCount),
-          tradeVolume: BigInt(row.tradeVolume),
-          averageTradeSize: BigInt(row.averageTradeSize),
-          averageReturn: BigInt(row.averageReturn),
-          startDate: BigInt(row.startDate),
-          lastTradeDate: BigInt(row.lastTradeDate),
-        });
+  const activityBadge =
+    row.activityBadge === null ? null : BigInt(row.activityBadge).toString();
 
   return c.json({
     profile: {
@@ -192,7 +173,8 @@ api.get("/api/profiles/:slug", async (c) => {
       displayName: row.displayName,
       bio: row.bio,
       contractAddress: row.contractAddress,
-      stats,
+      stats: null,
+      activityBadge,
       observedAt: row.observedAt?.toISOString() ?? null,
     },
   });
@@ -221,15 +203,9 @@ api.get("/api/me", async (c) => {
       isPublic: profile.isPublic,
       contractAddress: profile.contractAddress,
       stats: snapshot
-        ? toPublicTraderStats({
-            tradeCount: BigInt(snapshot.tradeCount),
-            tradeVolume: BigInt(snapshot.tradeVolume),
-            averageTradeSize: BigInt(snapshot.averageTradeSize),
-            averageReturn: BigInt(snapshot.averageReturn),
-            startDate: BigInt(snapshot.startDate),
-            lastTradeDate: BigInt(snapshot.lastTradeDate),
-          })
+        ? null
         : null,
+      activityBadge: snapshot ? BigInt(snapshot.activityBadge).toString() : null,
       observedAt: snapshot?.observedAt.toISOString() ?? null,
     },
     broker: broker
@@ -368,8 +344,25 @@ api.post("/api/me/attestation", async (c) => {
     iv: connection.credentialIv,
     tag: connection.credentialTag,
   });
-  const attestation = await requestSignedAttestation(token);
-  return c.json({ attestation });
+  const subjectId = createHash("sha256").update(currentUser.id).digest("hex");
+  try {
+    const attestation = await requestSignedAttestation(token, subjectId);
+    return c.json({ attestation });
+  } catch (error) {
+    if (error instanceof AttestationServiceError && error.status === 422) {
+      return c.json({ error: error.message }, 422);
+    }
+    throw error;
+  }
+});
+
+api.get("/api/me/attestation/provider-key", (c) => {
+  const x = process.env.RAISEVEIL_PROVIDER_PUBLIC_KEY_X;
+  const y = process.env.RAISEVEIL_PROVIDER_PUBLIC_KEY_Y;
+  if (!x || !/^\d+$/.test(x) || !y || !/^\d+$/.test(y)) {
+    return c.json({ error: "The trusted provider public key is not configured" }, 503);
+  }
+  return c.json({ publicKey: { x, y } });
 });
 
 api.post("/api/me/contract", async (c) => {
@@ -379,7 +372,6 @@ api.post("/api/me/contract", async (c) => {
   }
 
   const contract = await readVerifiedContract(body.contractAddress.trim());
-  const stats = toPublicTraderStats(contract.stats);
   const currentUser = c.get("user");
   const profile = await getOrCreateProfile(currentUser);
   const now = new Date();
@@ -394,23 +386,25 @@ api.post("/api/me/contract", async (c) => {
       .values({
         id: randomUUID(),
         profileId: profile.id,
-        tradeCount: contract.stats.tradeCount.toString(),
-        tradeVolume: contract.stats.tradeVolume.toString(),
-        averageTradeSize: contract.stats.averageTradeSize.toString(),
-        averageReturn: contract.stats.averageReturn.toString(),
-        startDate: contract.stats.startDate.toString(),
-        lastTradeDate: contract.stats.lastTradeDate.toString(),
+        tradeCount: "0",
+        tradeVolume: "0",
+        averageTradeSize: "0",
+        averageReturn: "0",
+        startDate: "0",
+        lastTradeDate: "0",
+        activityBadge: contract.activityBadge.toString(),
         observedAt: now,
       })
       .onConflictDoUpdate({
         target: traderSnapshots.profileId,
         set: {
-          tradeCount: contract.stats.tradeCount.toString(),
-          tradeVolume: contract.stats.tradeVolume.toString(),
-          averageTradeSize: contract.stats.averageTradeSize.toString(),
-          averageReturn: contract.stats.averageReturn.toString(),
-          startDate: contract.stats.startDate.toString(),
-          lastTradeDate: contract.stats.lastTradeDate.toString(),
+          tradeCount: "0",
+          tradeVolume: "0",
+          averageTradeSize: "0",
+          averageReturn: "0",
+          startDate: "0",
+          lastTradeDate: "0",
+          activityBadge: contract.activityBadge.toString(),
           observedAt: now,
         },
       });
@@ -420,7 +414,8 @@ api.post("/api/me/contract", async (c) => {
     profile: {
       slug: profile.slug,
       contractAddress: contract.contractAddress,
-      stats,
+      stats: null,
+      activityBadge: contract.activityBadge.toString(),
       observedAt: now.toISOString(),
     },
   });

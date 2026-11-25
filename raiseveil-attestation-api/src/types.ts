@@ -1,6 +1,6 @@
 export interface AttestationRequest {
   token: string;
-  /** Request metadata only; the current contract does not include this in its verified message. */
+  /** 32-byte hexadecimal subject identifier, bound into the signed message. */
   userPubKeyHash: string;
 }
 
@@ -17,12 +17,14 @@ export interface AttestationResponse {
     averageReturn: string;
     startDate: string;
     lastTradeDate: string;
+    subjectId: string;
+    activityPolicyId: string;
   };
   stats: Omit<TraderData, 'startDate' | 'lastTradeDate'> & {
     startDate: string;
     lastTradeDate: string;
   };
-  /** Not covered by the signature or the contract's current verification circuit. */
+  /** Subject identifier; it is covered by the signature and circuit. */
   userPubKeyHash: string;
 }
 

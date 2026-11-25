@@ -1,6 +1,5 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { setNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 
 export const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -82,6 +81,5 @@ export function getConfig(network: string | undefined): Config {
     throw new Error(`Unsupported RAISEVEIL_NETWORK "${network}". Use "standalone" or "preprod".`);
   }
 
-  setNetworkId(config.networkId);
   return config;
 }

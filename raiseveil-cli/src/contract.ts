@@ -1,4 +1,4 @@
-import { CompiledContract } from "@midnight-ntwrk/midnight-js-protocol/compact-js";
+import { CompiledContract } from "@midnight-ntwrk/midnight-js-protocol/v9/compact-js";
 import { deployContract, findDeployedContract } from "@midnight-ntwrk/midnight-js-contracts";
 import { RaiseVeil, witnesses } from "raiseveil-contract";
 import { contractConfig } from "./config.js";

@@ -14,8 +14,8 @@
   "dependencies": {
     "@hono/node-server": "2.1.5",
     "raiseveil-contract": "0.1.0",
-    "@midnight-ntwrk/midnight-js-network-id": "4.1.1",
-    "@midnight-ntwrk/midnight-js-protocol": "4.1.1",
+    "@midnight-ntwrk/compact-runtime": "0.21.0",
+    "@midnight-ntwrk/midnight-js-protocol": "5.0.1",
     "hono": "4.13.13"
   },
   "devDependencies": {

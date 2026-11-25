@@ -2,12 +2,12 @@
 
 <img src="raiseveil-ui/src/assets/midnight.jpg" alt="Midnight" width=20 height=20>
 
-RaiseVeil is a marketplace for trader records that can be checked against
-publicly verifiable smart-contract data. A trader connects an OANDA account,
-requests a signed summary of their trading history, and uses the RaiseVeil CLI
-powered midnight to submit that summary to a Midnight contract. Once the contract
-publishes the verified values, the trader can link it to a public profile for others
-to explore.
+RaiseVeil is a marketplace for trader activity credentials that can be checked
+against publicly verifiable smart-contract data. A trader connects an OANDA
+account and a Midnight Lace wallet, then requests and submits a signed activity
+credential directly from the dashboard. The app deploys a personal Midnight
+contract, verifies the credential, and links it to a public profile. No local
+CLI is required in the trader workflow.
 
 RaiseVeil is not an investment service. Public stats describe past activity and
 are not investment advice or a guarantee of future results.
@@ -17,14 +17,14 @@ are not investment advice or a guarantee of future results.
 - A public landing page, trader marketplace, and profile pages.
 - Email-and-password signup, login, and password reset using Better Auth.
 - A signed-in dashboard for connecting OANDA, requesting an attestation,
-  submitting verified data, and managing profile visibility.
+  submitting a verified credential through Lace, and managing profile visibility.
 - A backend API using PostgreSQL and Drizzle ORM.
 - An attestation service that retrieves OANDA trading history, calculates the
   supported trader summary, and signs its contract-encoded values.
-- A Compact smart contract that verifies the attestation signature and
-  publishes the six supported trader fields to the Midnight ledger.
-- A CLI that checks the attestation and contract signer keys before submitting
-  the contract transaction.
+- A Compact smart contract that verifies the attestation signature and records
+  an activity badge on the Midnight ledger.
+- A browser wallet integration that deploys a personal contract and submits the
+  verification transaction through Lace.
 
 ## How verification works
 
@@ -37,32 +37,36 @@ are not investment advice or a guarantee of future results.
    attestation service using a shared bearer secret. The attestation service
    fetches the account's trading history, calculates the supported stats, and
    signs the encoded values with its provider key.
-3. **Download the attestation.** The dashboard returns the signed JSON file to
-   the trader. The CLI uses this file; the CLI does not need the broker token
-   or a direct connection to the attestation API.
-4. **Verify and publish on Midnight.** The CLI checks the provider key against
-   the locally pinned coordinates and the deployed contract's `trustedSignerPk`.
-   If the keys differ, it stops without changing the contract configuration.
-   The CLI then calls `verifyData`; the contract verifies the Schnorr
-   signature and publishes the signed trader data to its public ledger.
-5. **Link a public profile.** The account owner enters the deployed contract
-   address in the dashboard. The API reads the ledger through the Midnight
-   indexer, checks the trusted provider key and that trader data exists, and
-   stores a profile snapshot in PostgreSQL. Public marketplace and profile
-   pages display this snapshot. Link the contract again after a later
-   verification to update the stored snapshot.
+3. **Verify and publish on Midnight.** The dashboard keeps the signed
+   credential in the browser, deploys the trader's contract if needed, and calls
+   `verifyData` using Lace-backed proving and transaction submission. The
+   contract verifies the provider signature and publishes only the activity
+   badge. The trader approves the wallet transactions in Lace.
+4. **Link the public profile.** After confirmation, the dashboard sends the
+   contract address to the API. The API reads the Ledger 9 state through the
+   Midnight indexer, checks the trusted provider key and activity badge, and
+   stores the profile snapshot in PostgreSQL.
 
-The contract currently exposes only:
+The contract exposes only the activity badge and credential nullifier. It does
+not publish exact trade counts, volume, return, account balance, or win rate.
 
-- Trade count
-- Trade volume
-- Average trade size
-- Average return
-- First trade date
-- Last trade date
+## Activity credential privacy mode
 
-RaiseVeil does not currently expose account balance, profit and loss, win rate,
-or other metrics not present in the contract.
+The current contract includes a subject-bound selective-disclosure credential:
+
+- Policy `1` is issued only when the signed attestation has at least 100 OANDA
+  `ORDER_FILL` events spanning at least 180 days.
+- The attestation binds a SHA-256-derived subject identifier and policy ID into
+  the Schnorr-signed eight-field message.
+- The contract verifies the provider signature, discloses only policy ID `1`,
+  and records a domain-separated nullifier in `usedActivityCredentials`.
+- It does not disclose the exact trade count, dates, volume, size, or return.
+- Reusing the same subject-policy credential is rejected by the nullifier set.
+
+The attestation service evaluates the fixed policy; the contract does not infer
+the policy from arbitrary public thresholds. The signed metrics are supplied as
+private witness input and are not published as separate ledger fields; the public
+ledger stores only the badge and nullifier.
 
 ## System layout
 
@@ -71,7 +75,7 @@ or other metrics not present in the contract.
 | `raiseveil-ui` | React/Vite landing page, login/signup, dashboard, marketplace, and public trader profiles |
 | `raiseveil-api` | Better Auth, PostgreSQL persistence, encrypted broker credentials, public API, and Midnight indexer integration |
 | `raiseveil-attestation-api` | OANDA history retrieval, trader-stat calculation, and provider signing |
-| `raiseveil-cli` | Reads a downloaded attestation, checks signer configuration, creates the Midnight transaction, and submits `verifyData` |
+| `raiseveil-cli` | Optional legacy developer utility; the trader dashboard does not depend on it |
 | `contract` | Compact source, TypeScript witness, and generated contract package/assets |
 
 The API and attestation service are separate processes. The API calls the
@@ -85,17 +89,19 @@ appropriate network controls and keep secrets in a secret manager.
 - PostgreSQL.
 - A Neon account with access to the configured organization, project, and
   `production` branch when using the hosted database.
-- Compact compiler 0.35.0 for compiling the current contract.
+- Midnight Lace configured for Preprod and funded with DUST for transaction fees.
+- Compact compiler 0.36.1 only when recompiling the Ledger 9 contract.
 - A configured OANDA API token for the account whose history will be attested.
-- A running Midnight network and indexer. The CLI also needs the network node,
-  proof server, and contract ZK configuration.
-- A deployed RaiseVeil contract whose `trustedSignerPk` is configured to the
-  provider public key used by the attestation service.
+- A Preprod indexer for the API's contract-state checks. The browser loads the
+  contract's ZK configuration from static assets and delegates proving and
+  transaction submission to Lace; no local proof server is needed.
+- The provider public key configured for the attestation service; the dashboard
+  uses it to initialize each trader's contract on first submission.
 
-For local standalone use, the current defaults expect the Midnight indexer at
-`http://127.0.0.1:8088`, node at `http://127.0.0.1:9944`, and proof server at
-`http://127.0.0.1:6300`. For preprod, configure the project ID and the
-appropriate network services.
+The example environment targets Preprod and requires `BLOCKFROST_PROJECT_ID`
+for API indexer reads. To use a local devnet instead, set both
+`VITE_NETWORK_ID` and `MIDNIGHT_NETWORK_ID` to `undeployed`, and configure the
+API indexer URLs for your devnet.
 
 ## Local setup
 
@@ -131,8 +137,7 @@ database hosts.
 Set the provider public-key coordinates in
 `RAISEVEIL_PROVIDER_PUBLIC_KEY_X` and
 `RAISEVEIL_PROVIDER_PUBLIC_KEY_Y`. They must match the public key derived from
-the provider signing key, the deployed contract's `trustedSignerPk`, and the
-public key pinned by the CLI.
+the provider signing key and the contract's `trustedSignerPk`.
 
 Keep `RAISEVEIL_PROVIDER_SECRET_KEY` private to the attestation service. Never
 commit `.env`, wallet seeds, broker tokens, encryption keys, auth secrets, or
@@ -179,8 +184,8 @@ repository-root `.env` and restart Vite. The login and signup pages then show
 an “Explore demo workspace” option, and the marketplace and sample profile
 pages use clearly marked, read-only fictional data instead of API requests.
 This does not create an account or bypass API authentication. Leave it disabled
-for normal use; for a Vercel demo deployment, enable it on the UI service until
-public ledger-v9 support is available.
+for normal use; enable it on a Vercel demo deployment when you want a read-only
+product walkthrough.
 
 For email verification and password-reset delivery, configure `SMTP_URL` and
 `AUTH_EMAIL_FROM`. Verification is required in production; it can be enabled
@@ -222,68 +227,49 @@ then configure these environment variables in the Vercel project:
   `RAISEVEIL_ATTESTATION_SHARED_SECRET`, `RAISEVEIL_PROVIDER_ID`, and
   `OANDA_API_URL`.
 - UI build: `VITE_DEMO_MODE=true` for a read-only demo (set to `false` for
-  live marketplace data).
+  live marketplace data) and `VITE_NETWORK_ID=preprod` for the Lace connection.
 
 Set `BETTER_AUTH_URL`, `WEB_ORIGIN`, and
 `BETTER_AUTH_TRUSTED_ORIGINS` to the deployed site origin (for example,
 `https://raiseveil.example.com`). The attestation service's provider secret
 key and the shared secret must only be available server-side. Apply the
 database migrations to the configured database before using the deployed app.
-The API defaults to Midnight Preprod on Vercel and builds its HTTP and
+Set the UI's `VITE_NETWORK_ID` and API's `MIDNIGHT_NETWORK_ID` to the same
+network. The API defaults to Midnight Preprod on Vercel and builds its HTTP and
 WebSocket indexer URLs from `BLOCKFROST_PROJECT_ID`. You can instead provide
-both indexer URLs explicitly. Never use the local `127.0.0.1` indexer URLs in
-Vercel environment variables.
-The CLI checks the selected network's protocol version before starting its
-wallet; deployment and verification require ledger v9.
-The current Midnight compatibility matrix lists Preview, Preprod, and Mainnet
-as ledger v8, so none of those public networks can accept this v9 contract yet.
-The CLI will stop before wallet startup or transaction submission until a
-selected network supports v9. An immediate Preprod deployment would require
-deliberately porting the contract and its SDK/toolchain to ledger v8 first.
+both indexer URLs explicitly. Never use local `127.0.0.1` indexer URLs in
+Vercel environment variables. The UI build copies the Ledger 9 compiler
+metadata, verifier/prover keys, and ZKIR files into its static output.
 
 For local multi-service routing and binding behavior, use `vercel dev` from
 the repository root. The ordinary `npm run dev --workspace ...` commands
 remain available for running each service independently.
 
-### 4. Build and configure the contract
+### 4. Prepare the Ledger 9 contract
 
-Install/select Compact 0.35.0, then build the contract and CLI:
-
-```sh
-compact update 0.35.0
-npm run build --workspace raiseveil-cli
-```
-
-Deploy the contract with the provider's public key using the CLI's `deploy`
-command. The key is stored in a sealed ledger field during construction and
-cannot be replaced later. The CLI's `verify` command checks that it matches the
-locally pinned provider key before submitting trader data.
-
-### 5. Verify and publish a trader record
-
-Create an account at `/signup`, sign in, and connect the OANDA token from the
-dashboard. Request and download the attestation JSON. Set the local CLI
-environment values `MIDNIGHT_WALLET_SEED`,
-`RAISEVEIL_PROVIDER_PUBLIC_KEY_X`, `RAISEVEIL_PROVIDER_PUBLIC_KEY_Y`, and
-`RAISEVEIL_PRIVATE_STATE_PASSWORD`, then deploy the contract:
+The generated contract assets are committed, so application builds do not need
+the Compact compiler. If you change the Compact source, compile it with Compact
+0.36.1 (language version 0.28.0 / Ledger 9), then rebuild the generated package:
 
 ```sh
-npm run start --workspace raiseveil-cli -- deploy
+npm run compact --workspace contract
+npm run build --workspace raiseveil-contract
 ```
 
-Use the printed address to link the deployed contract from the dashboard. After
-deployment, submit an attestation with:
+The contract's trusted provider key is set at deployment and cannot be changed.
 
-```sh
-npm run start --workspace raiseveil-cli -- verify <contract-address> \
-  --attestation-file ./raiseveil-attestation.json
-```
+### 5. Submit an activity credential from the dashboard
 
-Use the wallet that can transact with the selected network. `RAISEVEIL_NETWORK`
-defaults to `standalone`; set it to `preprod` and provide
-`BLOCKFROST_PROJECT_ID` when using preprod. After the transaction is confirmed,
-link the same contract address from the dashboard to publish the latest
-on-chain snapshot on the profile.
+Create an account at `/signup`, sign in, and connect an OANDA account with
+eligible history. In Lace, select Preprod and ensure the wallet has DUST for
+fees. From the dashboard, connect Lace and choose **Verify and publish activity
+badge**. The app requests the signed credential, deploys your personal contract
+on first use, and submits `verifyData`; approve the transactions in Lace. The
+dashboard then links the confirmed contract to your profile.
+
+If OANDA reports no filled trades or the account has fewer than 100 qualifying
+fills spanning 180 days, the API rejects the request before a contract
+transaction is started.
 
 ## Useful commands
 
@@ -293,9 +279,6 @@ npm run test --workspace raiseveil-api
 
 # Run the attestation service test suite
 npm run test --workspace raiseveil-attestation-api
-
-# Run the CLI test suite
-npm run test --workspace raiseveil-cli
 
 # Compile and test the Compact contract
 npm run test:compile --workspace contract
@@ -308,7 +291,7 @@ npm run build --workspace raiseveil-attestation-api
 npm run build --workspace raiseveil-ui
 npm run lint --workspace raiseveil-ui
 
-# Build the CLI, APIs, and UI
+# Build the workspaces
 npm run build
 ```
 
@@ -343,14 +326,9 @@ secret.
   but does not cryptographically prove that a profile owner controls the
   wallet/contract they link. Profile ownership and contract ownership can
   therefore differ.
-- The CLI submits the attestation transaction. Contract deployment and trusted
-  signer initialization are separate operator steps.
-- The browser dashboard does not generate ZK proofs or submit contract calls
-  itself; those actions currently use the CLI and configured Midnight
-  proof-server/network components.
+- The trader dashboard uses Lace for contract deployment, proving, and
+  transaction submission. The optional CLI is not part of this flow.
 - Public trader stats are historical data, not recommendations or promises of
   future performance.
 
-See [raiseveil-api/README.md](./raiseveil-api/README.md) for backend setup and
-[raiseveil-cli/README.md](./raiseveil-cli/README.md) for CLI configuration and
-verification details.
+See [raiseveil-api/README.md](./raiseveil-api/README.md) for backend setup.

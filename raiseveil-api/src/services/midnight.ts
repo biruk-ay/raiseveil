@@ -1,11 +1,9 @@
 import { RaiseVeil } from "raiseveil-contract";
 import { indexerPublicDataProvider } from "@midnight-ntwrk/midnight-js-indexer-public-data-provider";
-import { setNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
-import type { RawTraderStats } from "./trader-stats.js";
-
+import { ContractState } from "@midnight-ntwrk/compact-runtime";
 export interface VerifiedContractState {
   contractAddress: string;
-  stats: RawTraderStats;
+  activityBadge: bigint;
 }
 
 const PREPROD_INDEXER_HTTP_URL = "https://midnight-preprod.blockfrost.io/api/v0";
@@ -62,8 +60,10 @@ export async function readVerifiedContract(
   }
 
   const config = getNetworkConfig();
-  setNetworkId(config.networkId);
-  const provider = indexerPublicDataProvider(config.queryURL, config.subscriptionURL);
+  const provider = indexerPublicDataProvider({
+    queryURL: config.queryURL,
+    subscriptionURL: config.subscriptionURL,
+  });
 
   try {
     const state = await provider.queryContractState(contractAddress);
@@ -71,7 +71,9 @@ export async function readVerifiedContract(
       throw new Error("No contract was found at that address on the selected network");
     }
 
-    const ledger = RaiseVeil.ledger(state.data);
+    const ledger = RaiseVeil.ledger(
+      state.contractState.deserialize({ v9: ContractState }).data,
+    );
     if (
       ledger.trustedSignerPk.x.toString() !== config.expectedKeyX ||
       ledger.trustedSignerPk.y.toString() !== config.expectedKeyY
@@ -79,20 +81,10 @@ export async function readVerifiedContract(
       throw new Error("This contract is not configured with RaiseVeil's trusted attestation key");
     }
 
-    const stats = {
-      tradeCount: ledger.traderData.tradeCount,
-      tradeVolume: ledger.traderData.tradeVolume,
-      averageTradeSize: ledger.traderData.averageTradeSize,
-      averageReturn: ledger.traderData.averageReturn,
-      startDate: ledger.traderData.startDate,
-      lastTradeDate: ledger.traderData.lastTradeDate,
-    };
-
-    if (stats.tradeCount <= 0n) {
-      throw new Error("This contract has not published verified trader data yet");
+    if (ledger.activityBadge !== 1n) {
+      throw new Error("This contract does not contain the RaiseVeil activity policy badge");
     }
-
-    return { contractAddress, stats };
+    return { contractAddress, activityBadge: ledger.activityBadge };
   } finally {
     await provider.dispose();
   }

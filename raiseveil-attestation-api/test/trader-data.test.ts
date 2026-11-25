@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { traderData } from '../src/trader/trader-data.js';
+import { NoFilledTradesError, traderData } from '../src/trader/trader-data.js';
 
 const baseUrl = 'https://api-fxpractice.oanda.com';
 
@@ -92,8 +92,6 @@ describe('traderData', () => {
       return jsonResponse({ transactions: [{ id: '1', type: 'MARKET_ORDER' }] });
     }));
 
-    await expect(traderData('test-token')).rejects.toThrow(
-      'No filled trades were found for the OANDA accounts',
-    );
+    await expect(traderData('test-token')).rejects.toBeInstanceOf(NoFilledTradesError);
   });
 });

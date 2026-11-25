@@ -13,6 +13,8 @@ export type AttestedTraderData = {
     averageReturn: bigint;
     startDate: bigint;
     lastTradeDate: bigint;
+    subjectId: bigint;
+    activityPolicyId: bigint;
     attestationSignature: SchnorrSignature;
 }
 
@@ -31,6 +33,8 @@ export const witnesses = {
         lastTradeDate: bigint;
       },
       SchnorrSignature,
+      bigint,
+      bigint,
     ],
   ] => [
     privateState,
@@ -44,6 +48,8 @@ export const witnesses = {
         lastTradeDate: privateState.lastTradeDate,
       },
       privateState.attestationSignature,
+      privateState.subjectId,
+      privateState.activityPolicyId,
     ],
   ],
 }

@@ -15,6 +15,13 @@ interface OandaAccount {
   id: string;
 }
 
+export class NoFilledTradesError extends Error {
+  constructor() {
+    super('No filled trades were found for the OANDA accounts');
+    this.name = 'NoFilledTradesError';
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -101,7 +108,7 @@ function computeTraderData(transactions: OandaTransaction[]): TraderData {
   const fills = transactions.filter((transaction) => transaction.type === 'ORDER_FILL');
 
   if (fills.length === 0) {
-    throw new Error('No filled trades were found for the OANDA accounts');
+    throw new NoFilledTradesError();
   }
 
   let tradeVolume = 0;

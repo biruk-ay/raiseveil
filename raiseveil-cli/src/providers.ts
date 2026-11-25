@@ -1,11 +1,13 @@
-import type { ProvableCircuitId } from "@midnight-ntwrk/midnight-js-protocol/compact-js";
+import type { ProvableCircuitId } from "@midnight-ntwrk/midnight-js-protocol/v9/compact-js";
 import type { ContractProviders } from "@midnight-ntwrk/midnight-js-contracts";
 import { httpClientProofProvider } from "@midnight-ntwrk/midnight-js-http-client-proof-provider";
 import { indexerPublicDataProvider } from "@midnight-ntwrk/midnight-js-indexer-public-data-provider";
 import { levelPrivateStateProvider } from "@midnight-ntwrk/midnight-js-level-private-state-provider";
 import { NodeZkConfigProvider } from "@midnight-ntwrk/midnight-js-node-zk-config-provider";
-import { createMidnightProvider, createWalletProvider } from "@midnight-ntwrk/midnight-js-types";
-import type { FinalizedTransaction } from "@midnight-ntwrk/midnight-js-protocol/ledger";
+import {
+  createLedger9MidnightProvider,
+  createLedger9WalletProvider,
+} from "@midnight-ntwrk/midnight-js-types";
 import { ProtocolVersion, WalletTransaction } from "@midnight-ntwrk/wallet-sdk";
 import { contractConfig, type Config } from "./config.js";
 import type { AppContract } from "./types.js";
@@ -40,7 +42,7 @@ async function createWalletProviders(
       "The RaiseVeil contract requires ledger v9, but the selected network has not reached its v9 protocol version",
     );
   }
-  const walletProvider = createWalletProvider({
+  const walletProvider = createLedger9WalletProvider({
     getCoinPublicKey: () => state.shielded.coinPublicKey.toHexString(),
     getEncryptionPublicKey: () => state.shielded.encryptionPublicKey.toHexString(),
     async balanceTx(tx, ttl) {
@@ -48,40 +50,26 @@ async function createWalletProviders(
       if (currentState.activeProtocolVersion < ProtocolVersion.V9NativeForkVersion) {
         throw new Error("The selected network is not currently using ledger v9");
       }
-      const unboundTransaction = WalletTransaction.adopt(
-        "Unbound",
-        tx,
-        currentState.activeProtocolVersion,
-      );
       const recipe = await wallet.facade.balanceUnboundTransaction(
-        unboundTransaction,
+        wallet.facade.adoptTransaction(tx.serialize(), "Unbound"),
         { ttl: ttl ?? new Date(Date.now() + 30 * 60 * 1000) },
       );
-      const finalized = await wallet.facade.finalizeRecipe(recipe);
-      const unwrapped = WalletTransaction.unwrapWithin<FinalizedTransaction>(
-        finalized,
-        ProtocolVersion.makeRange(
-          finalized.protocolVersion,
-          ProtocolVersion.ProtocolVersion(finalized.protocolVersion + 1n),
-        ),
+      const signed = await wallet.facade.signRecipe(
+        recipe,
+        wallet.keystore.signDataAsync,
       );
-      if (unwrapped._tag === "Left") {
-        throw unwrapped.left;
-      }
-      return unwrapped.right;
+      const finalized = await wallet.facade.finalizeRecipe(signed);
+      return Buffer.from(WalletTransaction.toWire(finalized).transaction, "hex");
     },
   });
-  const midnightProvider = createMidnightProvider(async (tx) => {
+  const midnightProvider = createLedger9MidnightProvider(async (tx) => {
     const currentState = await wallet.facade.waitForSyncedState();
     if (currentState.activeProtocolVersion < ProtocolVersion.V9NativeForkVersion) {
       throw new Error("The selected network is not currently using ledger v9");
     }
-    const finalizedTransaction = WalletTransaction.adopt(
-      "Finalized",
-      tx,
-      currentState.activeProtocolVersion,
+    return wallet.facade.submitTransaction(
+      wallet.facade.adoptTransaction(tx.serialize(), "Finalized"),
     );
-    return wallet.facade.submitTransaction(finalizedTransaction);
   });
   return { walletProvider, midnightProvider };
 }

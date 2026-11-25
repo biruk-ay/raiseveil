@@ -13,6 +13,7 @@ export interface TraderProfile {
   bio: string;
   contractAddress: string | null;
   stats: TraderStats | null;
+  activityBadge?: string | null;
   observedAt: string | null;
   isPublic?: boolean;
 }

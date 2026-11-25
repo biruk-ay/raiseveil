@@ -27,7 +27,7 @@ export function parseAttestation(value: unknown): AttestationResponse {
       typeof stats.averageReturn !== "number" || !Number.isFinite(stats.averageReturn) ||
       typeof stats.startDate !== "string" || Number.isNaN(Date.parse(stats.startDate)) ||
       typeof stats.lastTradeDate !== "string" || Number.isNaN(Date.parse(stats.lastTradeDate)) ||
-      typeof value.userPubKeyHash !== "string" || !/^\d+$/.test(value.userPubKeyHash)) {
+      typeof value.userPubKeyHash !== "string" || !/^[a-fA-F0-9]{64}$/.test(value.userPubKeyHash)) {
     throw new Error("Attestation file contains invalid trader statistics or metadata");
   }
 
@@ -46,6 +46,8 @@ export function parseAttestation(value: unknown): AttestationResponse {
       averageReturn: requireDecimal(message.averageReturn, "average return"),
       startDate: requireDecimal(message.startDate, "start date"),
       lastTradeDate: requireDecimal(message.lastTradeDate, "last trade date"),
+      subjectId: requireDecimal(message.subjectId, "subject ID"),
+      activityPolicyId: requireDecimal(message.activityPolicyId, "activity policy ID"),
     },
     stats: {
       tradeCount: stats.tradeCount,

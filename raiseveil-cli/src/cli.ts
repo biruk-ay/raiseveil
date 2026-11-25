@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { RaiseVeil } from "raiseveil-contract";
+import { ContractState } from "@midnight-ntwrk/midnight-js-protocol/v9/compact-runtime";
 import { readAttestationFile } from "./api.js";
 import { getConfig } from "./config.js";
 import { deployRaiseVeilContract, joinContract } from "./contract.js";
@@ -41,7 +42,7 @@ Optional environment:
 
 The authenticated dashboard creates the attestation file without exposing the broker
 token to this CLI. Deploy sets the trusted provider key once in the contract constructor.
-Verify checks that key before publishing the six signed values on-chain.`);
+Verify checks that key before publishing the subject-bound activity badge on-chain.`);
 }
 
 function createEmptyPrivateState(): RaiseVeilPrivateState {
@@ -52,6 +53,8 @@ function createEmptyPrivateState(): RaiseVeilPrivateState {
     averageReturn: 0n,
     startDate: 0n,
     lastTradeDate: 0n,
+    subjectId: 0n,
+    activityPolicyId: 0n,
     attestationSignature: {
       announcement: { x: 0n, y: 0n },
       response: 0n,
@@ -67,6 +70,8 @@ function createPrivateState(attestation: Awaited<ReturnType<typeof readAttestati
     averageReturn: BigInt(attestation.message.averageReturn),
     startDate: BigInt(attestation.message.startDate),
     lastTradeDate: BigInt(attestation.message.lastTradeDate),
+    subjectId: BigInt(attestation.message.subjectId),
+    activityPolicyId: BigInt(attestation.message.activityPolicyId),
     attestationSignature: {
       announcement: {
         x: BigInt(attestation.signature.announcement.x),
@@ -103,7 +108,9 @@ async function verify(contractAddress: string, attestationFile: string): Promise
       throw new Error(`Contract ${contractAddress} was not found on the selected network`);
     }
 
-    const ledgerState = RaiseVeil.ledger(chainState.data);
+    const ledgerState = RaiseVeil.ledger(
+      chainState.contractState.deserialize({ v9: ContractState }).data,
+    );
     if (ledgerState.trustedSignerPk.x !== pinnedKey.x ||
         ledgerState.trustedSignerPk.y !== pinnedKey.y) {
       throw new Error(
@@ -116,15 +123,14 @@ async function verify(contractAddress: string, attestationFile: string): Promise
     const contract = await joinContract(providers, contractAddress, initialPrivateState);
     const txData = await contract.callTx.verifyData();
 
-    console.log("Trader data verified on-chain.");
+    console.log("Activity credential verified on-chain.");
     console.log(`Transaction: ${txData.public.txId}`);
     console.log(`Block: ${txData.public.blockHeight}`);
-    console.log(`Trade count: ${attestation.stats.tradeCount}`);
-    console.log(`Trade volume: ${attestation.stats.tradeVolume}`);
-    console.log(`Average trade size: ${attestation.stats.averageTradeSize}`);
-    console.log(`Average return: ${attestation.stats.averageReturn}`);
-    console.log(`First fill: ${attestation.stats.startDate}`);
-    console.log(`Last fill: ${attestation.stats.lastTradeDate}`);
+    console.log(
+      attestation.message.activityPolicyId === "1"
+        ? "Public badge: 100+ fill activity, 180+ days"
+        : "No qualifying activity badge",
+    );
   } finally {
     await wallet.facade.stop();
   }

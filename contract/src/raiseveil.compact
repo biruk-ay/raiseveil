@@ -1,4 +1,4 @@
-pragma language_version 0.27.0;
+pragma language_version 0.28.0;
 
 import CompactStandardLibrary;
 
@@ -13,27 +13,50 @@ struct Trader {
     lastTradeDate: Field;
 }
 
-export ledger traderData: Trader;
+struct CredentialNullifierInput {
+    domain: Bytes<32>;
+    subjectId: Field;
+    policyId: Field;
+}
 
-witness getAttestedTraderDataWitness(): [Trader, JubjubSchnorrSignature];
+export ledger activityBadge: Field;
+export ledger usedActivityCredentials: Set<Bytes<32>>;
+
+witness getAttestedTraderDataWitness(): [Trader, JubjubSchnorrSignature, Field, Field];
 
 constructor(pk: JubjubPoint) {
     trustedSignerPk = disclose(pk);
 }
 
 export circuit verifyData(): [] {
-    const [data, signature] = getAttestedTraderDataWitness();
+    const [data, signature, subjectId, activityPolicyId] = getAttestedTraderDataWitness();
 
-    const msg: Vector<6, Field> = [
+    const msg: Vector<8, Field> = [
         data.tradeCount,
         data.tradeVolume,
         data.averageTradeSize,
         data.averageReturn,
         data.startDate,
-        data.lastTradeDate
+        data.lastTradeDate,
+        subjectId,
+        activityPolicyId
     ];
 
-    assert(jubjubSchnorrVerify<6>(msg, signature, trustedSignerPk), "Attestation Failed");
+    assert(jubjubSchnorrVerify<8>(msg, signature, trustedSignerPk), "Attestation Failed");
 
-    traderData = disclose(data);
+    assert(activityPolicyId == (1 as Field), "Activity Policy Not Met");
+    assert(subjectId != (0 as Field), "Invalid Subject");
+
+    const credentialNullifier = persistentHash<CredentialNullifierInput>(
+        CredentialNullifierInput{
+            domain: pad(32, "raiseveil:activity:nul:"),
+            subjectId: subjectId,
+            policyId: activityPolicyId
+        }
+    );
+    assert(!usedActivityCredentials.member(disclose(credentialNullifier)),
+           "Activity Credential Already Used");
+    usedActivityCredentials.insert(disclose(credentialNullifier));
+
+    activityBadge = disclose(activityPolicyId);
 }
