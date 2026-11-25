@@ -4,7 +4,6 @@
     "raiseveil-api": {
       "root": "raiseveil-api",
       "framework": "hono",
-      "runtime": "nodejs22.x",
       "buildCommand": "npm run build",
       "bindings": [
         {
@@ -17,7 +16,7 @@
     },
     "raiseveil-attestation-api": {
       "root": "raiseveil-attestation-api",
-      "runtime": "nodejs22.x",
+      "runtime": "node",
       "entrypoint": "src/handler.ts",
       "buildCommand": "npm run build"
     },
