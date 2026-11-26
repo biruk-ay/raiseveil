@@ -141,7 +141,13 @@ the provider signing key and the contract's `trustedSignerPk`.
 
 Keep `RAISEVEIL_PROVIDER_SECRET_KEY` private to the attestation service. Never
 commit `.env`, wallet seeds, broker tokens, encryption keys, auth secrets, or
-provider signing keys.
+provider signing keys. The provider secret must be a non-zero decimal
+JubJub scalar, not an arbitrary 256-bit key or an unprefixed hexadecimal
+string. Generate it with `sampleJubjubSchnorrSk()` from
+`@midnight-ntwrk/compact-runtime`, then derive the matching public
+coordinates with `jubjubSchnorrVerifyingKey()` and set those in the API
+environment. Rotating the signing key requires redeploying contracts that
+have the previous public key pinned as `trustedSignerPk`.
 
 ### 2. Start PostgreSQL and migrate the database
 

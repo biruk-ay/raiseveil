@@ -1,10 +1,13 @@
 import { FIELD_MODULUS } from '@midnight-ntwrk/compact-runtime';
+import { JUBJUB_SCALAR_MODULUS } from '@midnight-ntwrk/compact-runtime';
 import { describe, expect, it } from 'vitest';
 import {
   ACTIVITY_POLICY_ID,
   encodeSubjectId,
   encodeTraderData,
   getActivityPolicyId,
+  getPublicKey,
+  signTraderData,
 } from '../src/signing.js';
 
 describe('encodeTraderData', () => {
@@ -81,5 +84,24 @@ describe('encodeTraderData', () => {
   it('encodes a 32-byte subject identifier deterministically', () => {
     const subject = '01'.repeat(32);
     expect(encodeSubjectId(subject)).toBe(BigInt(`0x${subject}`));
+  });
+
+  it('signs the encoded attestation using a valid JubJub scalar', () => {
+    const data = {
+      tradeCount: 100,
+      tradeVolume: 500,
+      averageTradeSize: 5,
+      averageReturn: -1.25,
+      startDate: new Date('2026-01-01T00:00:00Z'),
+      lastTradeDate: new Date('2026-06-30T00:00:00Z'),
+    };
+
+    expect(() => signTraderData(1n, data, '01'.repeat(32))).not.toThrow();
+  });
+
+  it('rejects a provider signing key outside the JubJub scalar range', () => {
+    expect(() => getPublicKey(JUBJUB_SCALAR_MODULUS)).toThrow(
+      'Provider signing key must be a non-zero JubJub scalar',
+    );
   });
 });

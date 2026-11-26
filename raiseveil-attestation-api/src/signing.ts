@@ -2,6 +2,7 @@ import {
   CompactTypeField,
   CompactTypeVector,
   FIELD_MODULUS,
+  JUBJUB_SCALAR_MODULUS,
   jubjubSchnorrSign,
   jubjubSchnorrVerifyingKey,
   sampleJubjubSchnorrSk,
@@ -18,7 +19,14 @@ export function generateKeyPair(): { sk: bigint; pk: JubjubPoint } {
   return { sk, pk };
 }
 
+function assertValidSigningKey(sk: bigint): void {
+  if (sk <= 0n || sk >= JUBJUB_SCALAR_MODULUS) {
+    throw new Error("Provider signing key must be a non-zero JubJub scalar");
+  }
+}
+
 export function getPublicKey(sk: bigint): JubjubPoint {
+  assertValidSigningKey(sk);
   return jubjubSchnorrVerifyingKey(sk);
 }
 
@@ -107,6 +115,11 @@ export function encodeTraderData(data: TraderData): {
 }
 
 export function sign(sk: bigint, msg: bigint[]): JubjubSchnorrSignature {
+  assertValidSigningKey(sk);
+  const invalidMessageIndex = msg.findIndex((value) => value < 0n || value >= FIELD_MODULUS);
+  if (invalidMessageIndex !== -1) {
+    throw new Error(`Attestation message field ${invalidMessageIndex} is outside the Compact field range`);
+  }
   // jubjubSchnorrSign takes a CompactType descriptor and the typed message value.
   // For a vector of Field elements we pass the array directly with an appropriate descriptor.
   return jubjubSchnorrSign(msgDescriptor, msg, sk);
