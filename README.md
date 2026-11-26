@@ -210,7 +210,7 @@ and refreshes.
 
 The API exports its Hono app for Vercel while retaining the Node server for
 local development. Both API services expose Hono apps as Vercel entrypoints;
-the attestation service uses `src/index.mts`, while `src/index.ts` remains its
+the attestation service uses `src/index.ts`, while `src/dev.ts` runs its
 standalone local server. The Compact-generated contract files under
 `contract/src/managed/` are kept in Git so the independently built API service
 can compile against the contract workspace without needing the Compact
