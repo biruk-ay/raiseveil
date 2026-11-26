@@ -17,8 +17,8 @@
     },
     "raiseveil-attestation-api": {
       "root": "raiseveil-attestation-api",
-      "runtime": "node",
-      "entrypoint": "src/handler.ts",
+      "framework": "hono",
+      "entrypoint": "src/index.mts",
       "buildCommand": "npm run build"
     },
     "raiseveil-ui": {
