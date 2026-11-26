@@ -189,7 +189,11 @@ product walkthrough.
 
 For email verification and password-reset delivery, configure `SMTP_URL` and
 `AUTH_EMAIL_FROM`. Verification is required in production; it can be enabled
-locally with `REQUIRE_EMAIL_VERIFICATION=true`.
+locally with `REQUIRE_EMAIL_VERIFICATION=true`. To disable verification for a
+production demo, explicitly set `REQUIRE_EMAIL_VERIFICATION=false` in the API
+environment and redeploy. Unverified addresses can then register and sign in;
+this increases spam and account-abuse risk. SMTP is still needed for password
+reset emails.
 
 ## Deploying the web app to Vercel
 
@@ -221,8 +225,9 @@ then configure these environment variables in the Vercel project:
   `RAISEVEIL_ATTESTATION_SHARED_SECRET`,
   `RAISEVEIL_PROVIDER_PUBLIC_KEY_X`, `RAISEVEIL_PROVIDER_PUBLIC_KEY_Y`,
   `MIDNIGHT_NETWORK_ID`, `BLOCKFROST_PROJECT_ID` (for Preprod),
-  `MIDNIGHT_INDEXER_URL`, `MIDNIGHT_INDEXER_WS_URL`, `OANDA_API_URL`, `SMTP_URL`, and
-  `AUTH_EMAIL_FROM` as applicable.
+  `MIDNIGHT_INDEXER_URL`, `MIDNIGHT_INDEXER_WS_URL`, `OANDA_API_URL`, and
+  `REQUIRE_EMAIL_VERIFICATION`. Also configure `SMTP_URL` and `AUTH_EMAIL_FROM`
+  for verification and password-reset email delivery.
 - Attestation service: `RAISEVEIL_PROVIDER_SECRET_KEY`,
   `RAISEVEIL_ATTESTATION_SHARED_SECRET`, `RAISEVEIL_PROVIDER_ID`, and
   `OANDA_API_URL`.

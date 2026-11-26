@@ -29,8 +29,10 @@ the Midnight indexer. It does not publish off-chain broker metrics as verified.
    to `http://localhost:3000`.
 
 Configure `SMTP_URL` and `AUTH_EMAIL_FROM` for email verification and password
-reset. Email verification is required automatically in production; set
-`REQUIRE_EMAIL_VERIFICATION=true` to exercise it locally.
+reset. Email verification is required automatically in production unless
+`REQUIRE_EMAIL_VERIFICATION=false` is explicitly set. Disabling it permits
+unverified addresses to register and sign in, increasing spam and account-abuse
+risk. Password-reset emails still require SMTP configuration.
 
 Run the attestation service with
 `npm run dev --workspace raiseveil-attestation-api` to load the same

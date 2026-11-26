@@ -4,14 +4,17 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "../db/client.js";
 import { schema } from "../db/schema.js";
 import { sendAuthEmail } from "./email.js";
+import { isEmailVerificationRequired } from "./email-verification.js";
 
 const baseURL = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 const trustedOrigins = (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "http://localhost:5173")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
-const emailVerificationRequired =
-  process.env.NODE_ENV === "production" || process.env.REQUIRE_EMAIL_VERIFICATION === "true";
+const emailVerificationRequired = isEmailVerificationRequired(
+  process.env.NODE_ENV,
+  process.env.REQUIRE_EMAIL_VERIFICATION,
+);
 const secret = process.env.BETTER_AUTH_SECRET;
 if (!secret || secret.length < 32) {
   throw new Error("BETTER_AUTH_SECRET must be configured with at least 32 characters");
