@@ -156,9 +156,11 @@ export function Marketplace() {
                     <a className="text-link" href={`/trader/${trader.slug}`}>View profile</a>
                   </div>
                 </div>
-                {trader.activityBadge === "1" ? (
+                {trader.activityBadge === "1" || trader.activityBadge === "2" ? (
                   <div className="activity-badge" role="status">
-                    100+ fill activity · 180+ days
+                    {trader.activityBadge === "1"
+                      ? "Long-term activity · 100+ fills · 180+ days"
+                      : "Basic activity · 1+ executed fill"}
                   </div>
                 ) : trader.stats ? (
                   <StatsGrid stats={trader.stats} isSample={demoModeEnabled} />

@@ -33,16 +33,18 @@ export function getPublicKey(sk: bigint): JubjubPoint {
 const msgDescriptor = new CompactTypeVector(8, CompactTypeField);
 // Volume and averages are signed with five decimal places of fixed-point precision.
 const DATA_SCALE = 100_000n;
-export const ACTIVITY_POLICY_ID = 1n;
 export const ACTIVITY_POLICY_MIN_FILLS = 100;
 export const ACTIVITY_POLICY_MIN_DURATION_MS = 180 * 24 * 60 * 60 * 1000;
+export const LONG_TERM_ACTIVITY_POLICY_ID = 1n;
+export const BASIC_ACTIVITY_POLICY_ID = 2n;
 
 export function getActivityPolicyId(data: TraderData): bigint {
   const durationMs = data.lastTradeDate.getTime() - data.startDate.getTime();
-  return data.tradeCount >= ACTIVITY_POLICY_MIN_FILLS &&
-    durationMs >= ACTIVITY_POLICY_MIN_DURATION_MS
-    ? ACTIVITY_POLICY_ID
-    : 0n;
+  if (data.tradeCount >= ACTIVITY_POLICY_MIN_FILLS &&
+      durationMs >= ACTIVITY_POLICY_MIN_DURATION_MS) {
+    return LONG_TERM_ACTIVITY_POLICY_ID;
+  }
+  return data.tradeCount >= 1 ? BASIC_ACTIVITY_POLICY_ID : 0n;
 }
 
 function encodeField(value: number, fieldName: string, allowNegative = false): bigint {

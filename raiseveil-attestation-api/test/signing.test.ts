@@ -1,12 +1,15 @@
-import { FIELD_MODULUS } from '@midnight-ntwrk/compact-runtime';
-import { JUBJUB_SCALAR_MODULUS } from '@midnight-ntwrk/compact-runtime';
+import {
+  FIELD_MODULUS,
+  JUBJUB_SCALAR_MODULUS,
+} from '@midnight-ntwrk/compact-runtime';
 import { describe, expect, it } from 'vitest';
 import {
-  ACTIVITY_POLICY_ID,
+  BASIC_ACTIVITY_POLICY_ID,
   encodeSubjectId,
   encodeTraderData,
   getActivityPolicyId,
   getPublicKey,
+  LONG_TERM_ACTIVITY_POLICY_ID,
   signTraderData,
 } from '../src/signing.js';
 
@@ -69,15 +72,38 @@ describe('encodeTraderData', () => {
       startDate: new Date('2026-01-01T00:00:00Z'),
       lastTradeDate: new Date('2026-06-30T00:00:00Z'),
     };
-    expect(getActivityPolicyId({ ...base, tradeCount: 100 })).toBe(ACTIVITY_POLICY_ID);
+    expect(getActivityPolicyId({ ...base, tradeCount: 100 })).toBe(LONG_TERM_ACTIVITY_POLICY_ID);
     expect(getActivityPolicyId({
       ...base,
       tradeCount: 99,
-    })).toBe(0n);
+    })).toBe(BASIC_ACTIVITY_POLICY_ID);
     expect(getActivityPolicyId({
       ...base,
       tradeCount: 100,
       lastTradeDate: new Date('2026-06-29T23:59:59Z'),
+    })).toBe(BASIC_ACTIVITY_POLICY_ID);
+  });
+
+  it('assigns policy 2 to one executed fill with no minimum date span', () => {
+    const date = new Date('2026-01-01T00:00:00Z');
+    expect(getActivityPolicyId({
+      tradeCount: 1,
+      tradeVolume: 1,
+      averageTradeSize: 1,
+      averageReturn: 0,
+      startDate: date,
+      lastTradeDate: date,
+    })).toBe(BASIC_ACTIVITY_POLICY_ID);
+  });
+
+  it('does not assign a policy when there are no executed fills', () => {
+    expect(getActivityPolicyId({
+      tradeCount: 0,
+      tradeVolume: 0,
+      averageTradeSize: 0,
+      averageReturn: 0,
+      startDate: new Date('2026-01-01T00:00:00Z'),
+      lastTradeDate: new Date('2026-01-01T00:00:00Z'),
     })).toBe(0n);
   });
 

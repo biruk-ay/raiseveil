@@ -54,12 +54,15 @@ not publish exact trade counts, volume, return, account balance, or win rate.
 
 The current contract includes a subject-bound selective-disclosure credential:
 
-- Policy `1` is issued only when the signed attestation has at least 100 OANDA
-  `ORDER_FILL` events spanning at least 180 days.
+- Policy `1` (long-term activity) is issued when the signed attestation has at
+  least 100 OANDA `ORDER_FILL` events spanning at least 180 days.
+- Policy `2` (basic activity) is issued when the account has at least one
+  OANDA `ORDER_FILL` event, with no minimum history span.
 - The attestation binds a SHA-256-derived subject identifier and policy ID into
   the Schnorr-signed eight-field message.
-- The contract verifies the provider signature, discloses only policy ID `1`,
-  and records a domain-separated nullifier in `usedActivityCredentials`.
+- The contract verifies the provider signature, discloses the qualifying
+  policy ID, and records a domain-separated nullifier in
+  `usedActivityCredentials`.
 - It does not disclose the exact trade count, dates, volume, size, or return.
 - Reusing the same subject-policy credential is rejected by the nullifier set.
 
@@ -271,16 +274,17 @@ The contract's trusted provider key is set at deployment and cannot be changed.
 
 ### 5. Submit an activity credential from the dashboard
 
-Create an account at `/signup`, sign in, and connect an OANDA account with
-eligible history. In Lace, select Preprod and ensure the wallet has DUST for
-fees. From the dashboard, connect Lace and choose **Verify and publish activity
-badge**. The app requests the signed credential, deploys your personal contract
-on first use, and submits `verifyData`; approve the transactions in Lace. The
-dashboard then links the confirmed contract to your profile.
+Create an account at `/signup`, sign in, and connect an OANDA account with at
+least one executed fill. In Lace, select Preprod and ensure the wallet has DUST
+for fees. From the dashboard, connect Lace and choose **Verify and publish
+activity badge**. The app requests the signed credential, deploys your personal
+contract on first use, and submits `verifyData`; approve the transactions in
+Lace. The dashboard then links the confirmed contract to your profile.
 
-If OANDA reports no filled trades or the account has fewer than 100 qualifying
-fills spanning 180 days, the API rejects the request before a contract
-transaction is started.
+If OANDA reports no executed fills, the API rejects the request before a
+contract transaction is started. Any new contract can publish either the basic
+or long-term policy badge; already deployed contracts cannot be upgraded and
+must be redeployed to accept policy `2`.
 
 ## Useful commands
 

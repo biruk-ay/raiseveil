@@ -424,7 +424,10 @@ export class Contract {
                                                                                                                    { popeq: { cached: false,
                                                                                                                               result: undefined } }]).value)),
                             'Attestation Failed');
-    __compactRuntime.assert(activityPolicyId_0 === 1n, 'Activity Policy Not Met');
+    __compactRuntime.assert(activityPolicyId_0 === 1n
+                            ||
+                            activityPolicyId_0 === 2n,
+                            'Activity Policy Not Met');
     __compactRuntime.assert(subjectId_0 !== 0n, 'Invalid Subject');
     const credentialNullifier_0 = this._persistentHash_0({ domain:
                                                              new Uint8Array([114, 97, 105, 115, 101, 118, 101, 105, 108, 58, 97, 99, 116, 105, 118, 105, 116, 121, 58, 110, 117, 108, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
@@ -620,7 +623,7 @@ const _dummyContract = new Contract({
 });
 export const pureCircuits = {};
 export const expectedVk = {
-  'verifyData': '627296306d9068eacfe88d87e7d6e6413545bc36a0f1f95d58edb644c052963b',
+  'verifyData': '3fa74244a99818cc0f5658cdf9754b2dd47a42e2c25b3f4153dfe491758d08a6',
 };
 
 export const circuitSignatures = {

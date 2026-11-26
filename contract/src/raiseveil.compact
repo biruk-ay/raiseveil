@@ -44,7 +44,10 @@ export circuit verifyData(): [] {
 
     assert(jubjubSchnorrVerify<8>(msg, signature, trustedSignerPk), "Attestation Failed");
 
-    assert(activityPolicyId == (1 as Field), "Activity Policy Not Met");
+    assert(
+        activityPolicyId == (1 as Field) || activityPolicyId == (2 as Field),
+        "Activity Policy Not Met"
+    );
     assert(subjectId != (0 as Field), "Invalid Subject");
 
     const credentialNullifier = persistentHash<CredentialNullifierInput>(

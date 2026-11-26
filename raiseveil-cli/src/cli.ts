@@ -126,10 +126,13 @@ async function verify(contractAddress: string, attestationFile: string): Promise
     console.log("Activity credential verified on-chain.");
     console.log(`Transaction: ${txData.public.txId}`);
     console.log(`Block: ${txData.public.blockHeight}`);
+    const policyId = attestation.message.activityPolicyId;
     console.log(
-      attestation.message.activityPolicyId === "1"
-        ? "Public badge: 100+ fill activity, 180+ days"
-        : "No qualifying activity badge",
+      policyId === "1"
+        ? "Public badge: long-term activity (100+ fills, 180+ days)"
+        : policyId === "2"
+          ? "Public badge: basic activity (1+ executed fill)"
+          : "No qualifying activity badge",
     );
   } finally {
     await wallet.facade.stop();

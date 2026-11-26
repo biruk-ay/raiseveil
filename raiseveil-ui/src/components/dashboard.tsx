@@ -319,9 +319,11 @@ export function Dashboard() {
                   </span>
                 )}
               </div>
-              {data.profile.activityBadge === "1" ? (
+              {data.profile.activityBadge === "1" || data.profile.activityBadge === "2" ? (
                 <div className="activity-badge" role="status">
-                  100+ fill activity · 180+ days
+                  {data.profile.activityBadge === "1"
+                    ? "Long-term activity · 100+ fills · 180+ days"
+                    : "Basic activity · 1+ executed fill"}
                 </div>
               ) : data.profile.stats ? (
                 <StatsGrid stats={data.profile.stats} isSample={isDemo} />
@@ -399,7 +401,7 @@ export function Dashboard() {
                   <div className="attestation-action">
                     <button
                       className="button button--soft"
-                      disabled={busy || data.profile.activityBadge === "1"}
+                      disabled={busy || data.profile.activityBadge === "1" || data.profile.activityBadge === "2"}
                       onClick={() => wallet ? void createAndSubmitCredential() : void connectWallet()}
                       type="button"
                     >
@@ -407,7 +409,7 @@ export function Dashboard() {
                     </button>
                     <p>{wallet
                       ? "Your wallet proves and submits the signed credential. Approve each transaction in Lace."
-                      : "Connect Lace on Preprod. Eligible OANDA history requires at least 100 executed fills spanning 180 days."
+                      : "Connect Lace on Preprod. Basic activity requires 1 executed fill; long-term activity requires 100 fills spanning 180 days."
                     }</p>
                   </div>
                 )}

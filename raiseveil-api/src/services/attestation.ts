@@ -135,13 +135,14 @@ export async function requestSignedAttestation(
     throw new Error("Attestation service returned an unexpected subject identifier");
   }
   if (attestation.message.activityPolicyId !== "0" &&
-      attestation.message.activityPolicyId !== "1") {
+      attestation.message.activityPolicyId !== "1" &&
+      attestation.message.activityPolicyId !== "2") {
     throw new Error("Attestation service returned an unknown activity policy");
   }
-  if (attestation.message.activityPolicyId !== "1") {
+  if (attestation.message.activityPolicyId === "0") {
     throw new AttestationServiceError(
       422,
-      "Your OANDA history does not meet the activity policy yet. It requires at least 100 executed fills spanning 180 days.",
+      "Your OANDA history does not meet either activity policy yet. Basic activity requires at least 1 executed fill; long-term activity requires at least 100 executed fills spanning 180 days.",
     );
   }
   return attestation;

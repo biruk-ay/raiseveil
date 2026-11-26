@@ -81,7 +81,7 @@ export async function readVerifiedContract(
       throw new Error("This contract is not configured with RaiseVeil's trusted attestation key");
     }
 
-    if (ledger.activityBadge !== 1n) {
+    if (ledger.activityBadge !== 1n && ledger.activityBadge !== 2n) {
       throw new Error("This contract does not contain the RaiseVeil activity policy badge");
     }
     return { contractAddress, activityBadge: ledger.activityBadge };
