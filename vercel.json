@@ -19,7 +19,12 @@
       "root": "raiseveil-attestation-api",
       "framework": "hono",
       "entrypoint": "src/index.ts",
-      "buildCommand": "npm run build"
+      "buildCommand": "npm run build",
+      "functions": {
+        "src/index.ts": {
+          "includeFiles": "package.json"
+        }
+      }
     },
     "raiseveil-ui": {
       "root": "raiseveil-ui",
