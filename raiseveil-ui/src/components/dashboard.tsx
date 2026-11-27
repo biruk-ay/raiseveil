@@ -22,6 +22,19 @@ function walletErrorMessage(error: unknown): string | undefined {
   }
 }
 
+function transactionErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return "Unable to submit the activity credential";
+  }
+
+  if ("code" in error && error.code === "MIDNIGHT_JS_C_PROVIDER_FAILED" &&
+      "cause" in error && error.cause instanceof Error && error.cause.message) {
+    return `${error.message} Provider cause (sanitized): ${error.cause.name}: ${error.cause.message.slice(0, 500)}`;
+  }
+
+  return error.message;
+}
+
 export function Dashboard() {
   const isDemo = demoModeEnabled && hasDemoSession();
   const [data, setData] = useState<DashboardResponse | null>(() => isDemo ? demoDashboard : null);
@@ -151,6 +164,7 @@ export function Dashboard() {
     setBusy(true);
     setNotice("");
     let providers: Awaited<ReturnType<typeof createBrowserProviders>> | undefined;
+    let operation = "Requesting the OANDA attestation";
     try {
       const [{ attestation }, { publicKey }] = await Promise.all([
         apiRequest<{
@@ -187,11 +201,13 @@ export function Dashboard() {
         },
       };
 
+      operation = "Checking the Lace DUST balance";
       const dust = await wallet.api.getDustBalance();
       if (dust.balance <= 0n) {
         throw new Error("Your Lace wallet has no DUST available for transaction fees.");
       }
 
+      operation = "Preparing Midnight providers";
       providers = await createBrowserProviders(wallet.api);
       const pendingKey = `raiseveil-pending-contract-${data.user.id}`;
       const pendingAddress = sessionStorage.getItem(pendingKey);
@@ -200,6 +216,7 @@ export function Dashboard() {
       let contract;
 
       if (existingAddress) {
+        operation = "Connecting to your existing contract";
         contractAddress = existingAddress;
         contract = await findDeployedContract(providers, {
           contractAddress,
@@ -208,6 +225,7 @@ export function Dashboard() {
           initialPrivateState: privateState,
         });
       } else {
+        operation = "Deploying your RaiseVeil contract";
         const deployed = await deployContract(providers, {
           compiledContract,
           privateStateId: "raiseveil",
@@ -219,6 +237,7 @@ export function Dashboard() {
         sessionStorage.setItem(pendingKey, contractAddress);
       }
 
+      operation = "Submitting the verifyData transaction";
       try {
         const tx = await contract.callTx.verifyData();
         if (tx.public.status !== "SucceedEntirely") {
@@ -239,6 +258,7 @@ export function Dashboard() {
         }
       }
 
+      operation = "Linking the confirmed contract to your profile";
       await apiRequest("/api/me/contract", {
         method: "POST",
         body: JSON.stringify({ contractAddress }),
@@ -247,7 +267,7 @@ export function Dashboard() {
       setNotice("Your activity credential was verified on Midnight and your profile is updated.");
       await loadDashboard();
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Unable to submit your activity credential");
+      setNotice(`${operation} failed: ${transactionErrorMessage(error)}`);
     } finally {
       await providers?.dispose();
       setBusy(false);
